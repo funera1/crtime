@@ -34,11 +34,22 @@ mkdir build && cd build && cmake .. && cmake --build . --target wasmtime-hello
 #include <wasmtime.h>
 #include <cxxopts.hpp>
 #include <ylt/struct_pack.hpp>
+#include <ylt/struct_json/json_writer.h>
 
 using namespace std;
 
 static void exit_with_error(const char *message, wasmtime_error_t *error,
                             wasm_trap_t *trap);
+
+typedef struct global {
+  int kind;
+  int64_t value;
+} global_t;
+
+struct globals {
+  // vector<wasmtime_val_t> globals;
+  vector<global_t> globals;
+};
 
 bool write_binary(string filepath, uint8_t *data, size_t size){
     std::ofstream fout(filepath, std::ios::out | std::ios::binary);
@@ -92,23 +103,48 @@ public:
   }
 
   // TODO: 実装できてない, globalを事前に特定の名前でexportしないといけない設計になっていて良くない
-  vector<wasmtime_val_t> get_globals() {
+  vector<global_t> get_globals() {
       wasmtime_instance_t instance = get_instance();
       wasmtime_extern_t export_;
+
+      vector<global_t> globals;
       
-      string name = "global_0";
-      bool ok = wasmtime_instance_export_get(context, &instance, name.c_str(), name.size(), &export_);
-      if (!ok || export_.kind != WASMTIME_EXTERN_GLOBAL) {
-        printf("Failed to get global export\n");
-        return vector<wasmtime_val_t>();
+      // TODO: 1文字しか対応できてない
+      string base_name = "global_";
+      for (int i = 0; i < 10; i++) {
+        string name = base_name + to_string(i);
+        bool ok = wasmtime_instance_export_get(context, &instance, name.c_str(), name.size(), &export_);
+        // TODO: エラーとglobalが存在するかの判定ができるようにする
+        if (!ok) {
+          break;
+        }
+
+        wasmtime_global_t global = export_.of.global;
+        wasmtime_val_t value;
+        wasmtime_global_get(context, &global, &value);
+
+        global_t g;
+        g.kind = value.kind;
+        switch(value.kind) {
+          case WASMTIME_I32:
+            g.value = value.of.i32;
+            break;
+          case WASMTIME_F32:
+            g.value = value.of.f32;
+            break;
+          case WASMTIME_I64:
+            g.value = value.of.i64;
+            break;
+          case WASMTIME_F64:
+            g.value = value.of.f64;
+            break;
+          default:
+            break;
+        }
+        globals.push_back(g);
       }
 
-      wasmtime_global_t global = export_.of.global;
-      wasmtime_val_t value;
-      wasmtime_global_get(context, &global, &value);
-
-      // vector<wasmtime_val_t> ret = {value};
-      return {value};
+      return globals;
   }
 };
 
@@ -124,8 +160,13 @@ void sigtrap_handler(int sig) {
       printf("failed to checkpoint memory");
     }
 
-    // TODO: checkpoint global
-    // vector<wasmtime_val_t> global = vm->get_globals();
+    // checkpoint global
+    vector<global_t> global = vm->get_globals();
+    struct globals g{global};
+    vector<char> buffer = struct_pack::serialize(g);
+    if (!write_binary("wasm_global.img", (uint8_t *)buffer.data(), buffer.size())) {
+      printf("failed to checkpoint global");
+    }
 }
 
 void register_sigtrap() {
@@ -205,6 +246,8 @@ int main(int argc, char* argv[]) {
   vm = new VMCxt(config);
   assert(vm->engine != NULL);
   assert(vm->store != NULL);
+
+  wasmtime_linker_allow_unknown_exports(vm->linker, true);
 
   // Create a linker with WASI functions defined
   wasmtime_error_t *error = wasmtime_linker_define_wasi(vm->linker);
