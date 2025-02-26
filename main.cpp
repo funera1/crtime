@@ -22,6 +22,7 @@ mkdir build && cd build && cmake .. && cmake --build . --target wasmtime-hello
 */
 
 #include <iostream>
+#include <fstream>
 #include <string>
 
 #include <assert.h>
@@ -32,11 +33,24 @@ mkdir build && cd build && cmake .. && cmake --build . --target wasmtime-hello
 #include <wasmtime.h>
 
 #include <cxxopts.hpp>
+#include <ylt/struct_pack.hpp>
 
 using namespace std;
 
 static void exit_with_error(const char *message, wasmtime_error_t *error,
                             wasm_trap_t *trap);
+
+bool write_binary(string filepath, uint8_t *data, size_t size){
+    std::ofstream fout(filepath, std::ios::out | std::ios::binary);
+    fout.write((char *)data, size);
+    fout.close();
+    return true;
+}
+struct WasmState {
+  // memory
+  uint8_t* data;
+  size_t size;
+};
 class ExecEnv {
 public:
   wasm_engine_t *engine;
@@ -87,6 +101,13 @@ public:
       uint8_t* data = wasmtime_memory_data(context, &memory);
       size_t size = wasmtime_memory_data_size(context, &memory);
       printf("Memory size: %zu bytes\n", size);
+
+      // checkpoint memory
+      // WasmState ws = WasmState{data, size};
+      // std::vector<char> buffer = struct_pack::serialize(ws);
+      if (!write_binary("wasm_memory.img", data, size)) {
+        printf("failed to checkpoint memory");
+      }
 
       // 例: メモリの先頭にデータを書き込む
       // if (size >= 4) {

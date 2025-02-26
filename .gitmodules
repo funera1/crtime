@@ -4,3 +4,6 @@
 [submodule "third_party/cxxopts"]
 	path = third_party/cxxopts
 	url = https://github.com/jarro2783/cxxopts
+[submodule "third_party/yalantinglibs"]
+	path = third_party/yalantinglibs
+	url = https://github.com/alibaba/yalantinglibs.git

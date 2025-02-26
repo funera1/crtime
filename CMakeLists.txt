@@ -12,3 +12,9 @@ target_include_directories(cwtime PUBLIC wasmtime)
 add_subdirectory(third_party/cxxopts)
 target_link_libraries(cwtime PUBLIC cxxopts)
 target_include_directories(cwtime PUBLIC cxxopts)
+
+# yalantinglibs
+add_subdirectory(third_party/yalantinglibs)
+target_link_libraries(cwtime PUBLIC yalantinglibs::yalantinglibs)
+target_include_directories(cwtime PUBLIC yalantinglibs/include)
+# target_compile_features(cwtime PRIVATE cxx_std_20)
