@@ -27,6 +27,7 @@ mkdir build && cd build && cmake .. && cmake --build . --target wasmtime-hello
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <signal.h>
 #include <wasm.h>
 #include <wasmtime.h>
 
@@ -37,8 +38,65 @@ using namespace std;
 static void exit_with_error(const char *message, wasmtime_error_t *error,
                             wasm_trap_t *trap);
 
+// SIGTRAP シグナルハンドラ
+void segfault_handler(int sig) {
+    // auto end = std::chrono::high_resolution_clock::now();
+    // auto dur = std::chronro::duration_cast<std::chrono::milliseconds>(end - wamr->time);
+    // auto exec_env = wamr->get_exec_env();
+    // print_exec_env_debug_info(exec_env);
+    // print_memory(exec_env);
+    // printf("Execution time: %f s\n", dur.count() / 1000000.0);
+    // serialize_to_file(exec_env);
+    // wamr->int3_cv.wait(wamr->int3_ul);
+    // exit(EXIT_FAILURE);
+    printf("Caught SEGFAULT (signal number: %d)\n", sig);
+}
+void sigtrap_handler(int sig) {
+    printf("Caught SIGTRAP (signal number: %d)\n", sig);
+    // ここで適切なデバッグやエラーハンドリングを行う
+}
+
+void register_sigtrap() {
+#if defined(_WIN32)
+    signal(SIGILL, sigtrap_handler);
+    // SPDLOG_DEBUG("SIGILL registered");
+#else
+    struct sigaction sa {};
+    sigemptyset(&sa.sa_mask);
+    sa.sa_handler = sigtrap_handler;
+    sa.sa_flags = SA_RESTART;
+
+    struct sigaction sb {};
+    sigemptyset(&sb.sa_mask);
+    sb.sa_handler = segfault_handler;
+    sb.sa_flags = SA_RESTART;
+
+    // Register the signal handler for SIGTRAP
+    if (sigaction(SIGTRAP, &sa, nullptr) == -1) {
+        // SPDLOG_ERROR("Error: cannot handle SIGTRAP");
+        exit(-1);
+    } else {
+        if (sigaction(SIGSYS, &sa, nullptr) == -1) {
+            // SPDLOG_ERROR("Error: cannot handle SIGSYS");
+            exit(-1);
+        } else {
+            if (sigaction(SIGSEGV, &sb, nullptr) == -1) {
+                // SPDLOG_ERROR("Error: cannot handle SIGSEGV");
+                exit(-1);
+            } else {
+                // SPDLOG_DEBUG("SIGSEGV registered");
+            }
+            // SPDLOG_DEBUG("SIGSYS registered");
+        }
+        // SPDLOG_DEBUG("SIGTRAP registered");
+    }
+#endif
+}
 
 int main(int argc, char* argv[]) {
+  // Init logger
+  // spdlog::cfg::load_env_levels();
+
   // Parse options
   cxxopts::Options options("MyProgram", "One line description of MyProgram");
   options.add_options()
@@ -52,8 +110,13 @@ int main(int argc, char* argv[]) {
   cout << file_name << endl;
   assert(file_name.size() != 0);
 
+  // Register sigtrap handler
+  register_sigtrap();
+
   // Set up our context
-  wasm_engine_t *engine = wasm_engine_new();
+  wasm_config_t* config = wasm_config_new();
+  wasmtime_config_strategy_set(config, WASMTIME_STRATEGY_WINCH);
+  wasm_engine_t *engine = wasm_engine_new_with_config(config);
   assert(engine != NULL);
   wasmtime_store_t *store = wasmtime_store_new(engine, NULL, NULL);
   assert(store != NULL);
