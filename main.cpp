@@ -46,12 +46,8 @@ bool write_binary(string filepath, uint8_t *data, size_t size){
     fout.close();
     return true;
 }
-struct WasmState {
-  // memory
-  uint8_t* data;
-  size_t size;
-};
-class ExecEnv {
+
+class VMCxt {
 public:
   wasm_engine_t *engine;
   wasmtime_store_t *store;
@@ -60,7 +56,7 @@ public:
   wasmtime_context_t *context;
   wasm_trap_t *trap;
 
-  ExecEnv(wasm_config_t *config) {
+  VMCxt(wasm_config_t *config) {
     engine = wasm_engine_new_with_config(config);
     store = wasmtime_store_new(engine, NULL, NULL);
     linker = wasmtime_linker_new(engine);
@@ -108,36 +104,15 @@ public:
       if (!write_binary("wasm_memory.img", data, size)) {
         printf("failed to checkpoint memory");
       }
-
-      // 例: メモリの先頭にデータを書き込む
-      // if (size >= 4) {
-      //     data[0] = 'H';
-      //     data[1] = 'i';
-      //     data[2] = '!';
-      //     data[3] = '\0';
-      // }
   }
 
 };
-ExecEnv *vm = nullptr;
+VMCxt *vm = nullptr;
 
 // SIGTRAP シグナルハンドラ
-void segfault_handler(int sig) {
-    // auto end = std::chrono::high_resolution_clock::now();
-    // auto dur = std::chronro::duration_cast<std::chrono::milliseconds>(end - wamr->time);
-    // auto exec_env = wamr->get_exec_env();
-    // print_exec_env_debug_info(exec_env);
-    // print_memory(exec_env);
-    // printf("Execution time: %f s\n", dur.count() / 1000000.0);
-    // serialize_to_file(exec_env);
-    // wamr->int3_cv.wait(wamr->int3_ul);
-    // exit(EXIT_FAILURE);
-    printf("Caught SEGFAULT (signal number: %d)\n", sig);
-}
 void sigtrap_handler(int sig) {
     printf("Caught SIGTRAP (signal number: %d)\n", sig);
     vm->get_memory();
-    // ここで適切なデバッグやエラーハンドリングを行う
 }
 
 void register_sigtrap() {
@@ -150,34 +125,11 @@ void register_sigtrap() {
     sa.sa_handler = sigtrap_handler;
     sa.sa_flags = SA_RESTART;
 
-    struct sigaction sb {};
-    sigemptyset(&sb.sa_mask);
-    sb.sa_handler = segfault_handler;
-    sb.sa_flags = SA_RESTART;
-
     // Register the signal handler for SIGTRAP
     if (sigaction(SIGTRAP, &sa, nullptr) == -1) {
         // SPDLOG_ERROR("Error: cannot handle SIGTRAP");
         exit(-1);
     }
-    // if (sigaction(SIGTRAP, &sa, nullptr) == -1) {
-    //     // SPDLOG_ERROR("Error: cannot handle SIGTRAP");
-    //     exit(-1);
-    // } else {
-    //     if (sigaction(SIGSYS, &sa, nullptr) == -1) {
-    //         // SPDLOG_ERROR("Error: cannot handle SIGSYS");
-    //         exit(-1);
-    //     } else {
-    //         if (sigaction(SIGSEGV, &sb, nullptr) == -1) {
-    //             // SPDLOG_ERROR("Error: cannot handle SIGSEGV");
-    //             exit(-1);
-    //         } else {
-    //             // SPDLOG_DEBUG("SIGSEGV registered");
-    //         }
-    //         // SPDLOG_DEBUG("SIGSYS registered");
-    //     }
-    //     // SPDLOG_DEBUG("SIGTRAP registered");
-    // }
 #endif
 }
 
@@ -214,8 +166,6 @@ wasm_byte_vec_t load_wasm_file(string file_name) {
   return wasm;
 }
 
-
-
 int main(int argc, char* argv[]) {
   // Init logger
   // spdlog::cfg::load_env_levels();
@@ -239,7 +189,7 @@ int main(int argc, char* argv[]) {
   wasm_config_t* config = wasm_config_new();
   wasmtime_config_strategy_set(config, WASMTIME_STRATEGY_WINCH);
 
-  vm = new ExecEnv(config);
+  vm = new VMCxt(config);
   assert(vm->engine != NULL);
   assert(vm->store != NULL);
 
@@ -258,19 +208,12 @@ int main(int argc, char* argv[]) {
   wasm_byte_vec_delete(&wasm);
 
   // Instantiate wasi
-  // wasm_trap_t *trap = NULL;
   instantiate_wasi(vm->context, vm->trap);
 
   // Instantiate the module
   error = wasmtime_linker_module(vm->linker, vm->context, "", 0, vm->module);
   if (error != NULL)
     exit_with_error("failed to instantiate module", error, NULL);
-
-  // vm->get_memory();
-  // wasmtime_instance instance;
-  // error = wasmtime_linker_instantiate(vm.linker, vm.context, vm.module, &instance, &vm.trap);
-  // if (error != NULL || vm.trap != NULL)
-  //   exit_with_error("error instance module", error, vm.trap);
 
   // Run it.
   wasmtime_func_t func;
@@ -283,9 +226,9 @@ int main(int argc, char* argv[]) {
     exit_with_error("error calling default export", error, vm->trap);
 
   // Clean up after ourselves at this point
-  // wasmtime_module_delete(vm.module);
-  // wasmtime_store_delete(vm.store);
-  // wasm_engine_delete(vm.engine);
+  wasmtime_module_delete(vm.module);
+  wasmtime_store_delete(vm.store);
+  wasm_engine_delete(vm.engine);
   return 0;
 }
 
