@@ -29,9 +29,9 @@ mkdir build && cd build && cmake .. && cmake --build . --target wasmtime-hello
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
+
 #include <wasm.h>
 #include <wasmtime.h>
-
 #include <cxxopts.hpp>
 #include <ylt/struct_pack.hpp>
 
@@ -74,45 +74,58 @@ public:
     return instance;
   }
 
-  void get_memory() {
+  vector<uint8_t> get_memory() {
       wasmtime_instance_t instance = get_instance();
       wasmtime_extern_t export_;
       
       string name = "memory";
       bool ok = wasmtime_instance_export_get(context, &instance, name.c_str(), name.size(), &export_);
       if (!ok || export_.kind != WASMTIME_EXTERN_MEMORY) {
-          printf("Failed to get memory export\n");
-          return;
+        printf("Failed to get memory export\n");
+        return vector<uint8_t>();
       }
 
       wasmtime_memory_t memory = export_.of.memory;
-      printf("Memory retrieved successfully!\n");
-
-      // メモリの情報を取得
-      wasm_memorytype_t* memory_type = wasmtime_memory_type(context, &memory);
-      const wasm_limits_t *limits = wasm_memorytype_limits(memory_type);
-      printf("Memory min: %u, max: %u\n", limits->min, limits->max);
-
-      // メモリの生データにアクセス
       uint8_t* data = wasmtime_memory_data(context, &memory);
       size_t size = wasmtime_memory_data_size(context, &memory);
-      printf("Memory size: %zu bytes\n", size);
-
-      // checkpoint memory
-      // WasmState ws = WasmState{data, size};
-      // std::vector<char> buffer = struct_pack::serialize(ws);
-      if (!write_binary("wasm_memory.img", data, size)) {
-        printf("failed to checkpoint memory");
-      }
+      return vector<uint8_t>(data, data+size);
   }
 
+  // TODO: 実装できてない, globalを事前に特定の名前でexportしないといけない設計になっていて良くない
+  vector<wasmtime_val_t> get_globals() {
+      wasmtime_instance_t instance = get_instance();
+      wasmtime_extern_t export_;
+      
+      string name = "global_0";
+      bool ok = wasmtime_instance_export_get(context, &instance, name.c_str(), name.size(), &export_);
+      if (!ok || export_.kind != WASMTIME_EXTERN_GLOBAL) {
+        printf("Failed to get global export\n");
+        return vector<wasmtime_val_t>();
+      }
+
+      wasmtime_global_t global = export_.of.global;
+      wasmtime_val_t value;
+      wasmtime_global_get(context, &global, &value);
+
+      // vector<wasmtime_val_t> ret = {value};
+      return {value};
+  }
 };
+
 VMCxt *vm = nullptr;
 
 // SIGTRAP シグナルハンドラ
 void sigtrap_handler(int sig) {
     printf("Caught SIGTRAP (signal number: %d)\n", sig);
-    vm->get_memory();
+
+    // checkpoint memory
+    vector<uint8_t> memory = vm->get_memory();
+    if (!write_binary("wasm_memory.img", memory.data(), memory.size())) {
+      printf("failed to checkpoint memory");
+    }
+
+    // TODO: checkpoint global
+    // vector<wasmtime_val_t> global = vm->get_globals();
 }
 
 void register_sigtrap() {
@@ -226,9 +239,9 @@ int main(int argc, char* argv[]) {
     exit_with_error("error calling default export", error, vm->trap);
 
   // Clean up after ourselves at this point
-  wasmtime_module_delete(vm.module);
-  wasmtime_store_delete(vm.store);
-  wasm_engine_delete(vm.engine);
+  wasmtime_module_delete(vm->module);
+  wasmtime_store_delete(vm->store);
+  wasm_engine_delete(vm->engine);
   return 0;
 }
 
