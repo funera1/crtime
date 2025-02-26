@@ -1,3 +1,6 @@
 [submodule "third_party/wasmtime"]
 	path = third_party/wasmtime
-	url = https://github.com/bytecodealliance/wasmtime.git
+	url = https://github.com/funera1/wasmtime.git
+[submodule "third_party/cxxopts"]
+	path = third_party/cxxopts
+	url = https://github.com/jarro2783/cxxopts
