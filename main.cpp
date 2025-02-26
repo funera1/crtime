@@ -21,11 +21,18 @@ You can also build using cmake:
 mkdir build && cd build && cmake .. && cmake --build . --target wasmtime-hello
 */
 
+#include <iostream>
+#include <string>
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <wasm.h>
 #include <wasmtime.h>
+
+#include <cxxopts.hpp>
+
+using namespace std;
 
 static void exit_with_error(const char *message, wasmtime_error_t *error,
                             wasm_trap_t *trap);
@@ -38,7 +45,21 @@ static wasm_trap_t *hello_callback(void *env, wasmtime_caller_t *caller,
   return NULL;
 }
 
-int main() {
+int main(int argc, char* argv[]) {
+  // Parse options
+  cxxopts::Options options("MyProgram", "One line description of MyProgram");
+  options.add_options()
+    ("d,debug", "Enable debugging") // a bool parameter
+    ("i,integer", "Int param", cxxopts::value<int>())
+    ("f,file", "File name", cxxopts::value<std::string>())
+    ("v,verbose", "Verbose output", cxxopts::value<bool>()->default_value("false"))
+    ;
+  auto result = options.parse(argc, argv);
+  string file_name = result["file"].as<string>();
+  cout << file_name << endl;
+  assert(file_name.size() != 0);
+
+
   int ret = 0;
   // Set up our compilation context. Note that we could also work with a
   // `wasm_config_t` here to configure what feature are enabled and various
@@ -55,7 +76,7 @@ int main() {
   wasmtime_context_t *context = wasmtime_store_context(store);
 
   // Read our input file, which in this case is a wasm text file.
-  FILE *file = fopen("examples/hello.wat", "r");
+  FILE *file = fopen(file_name.c_str(), "r");
   assert(file != NULL);
   fseek(file, 0L, SEEK_END);
   size_t file_size = ftell(file);
