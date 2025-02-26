@@ -37,13 +37,6 @@ using namespace std;
 static void exit_with_error(const char *message, wasmtime_error_t *error,
                             wasm_trap_t *trap);
 
-static wasm_trap_t *hello_callback(void *env, wasmtime_caller_t *caller,
-                                   const wasmtime_val_t *args, size_t nargs,
-                                   wasmtime_val_t *results, size_t nresults) {
-  printf("Calling back...\n");
-  printf("> Hello World!\n");
-  return NULL;
-}
 
 int main(int argc, char* argv[]) {
   // Parse options
@@ -59,95 +52,76 @@ int main(int argc, char* argv[]) {
   cout << file_name << endl;
   assert(file_name.size() != 0);
 
-
-  int ret = 0;
-  // Set up our compilation context. Note that we could also work with a
-  // `wasm_config_t` here to configure what feature are enabled and various
-  // compilation settings.
-  printf("Initializing...\n");
+  // Set up our context
   wasm_engine_t *engine = wasm_engine_new();
   assert(engine != NULL);
-
-  // With an engine we can create a *store* which is a long-lived group of wasm
-  // modules. Note that we allocate some custom data here to live in the store,
-  // but here we skip that and specify NULL.
   wasmtime_store_t *store = wasmtime_store_new(engine, NULL, NULL);
   assert(store != NULL);
   wasmtime_context_t *context = wasmtime_store_context(store);
 
-  // Read our input file, which in this case is a wasm text file.
-  FILE *file = fopen(file_name.c_str(), "r");
-  assert(file != NULL);
+  // Create a linker with WASI functions defined
+  wasmtime_linker_t *linker = wasmtime_linker_new(engine);
+  wasmtime_error_t *error = wasmtime_linker_define_wasi(linker);
+  if (error != NULL)
+    exit_with_error("failed to link wasi", error, NULL);
+
+  wasm_byte_vec_t wasm;
+  // Load our input file to parse it next
+  FILE *file = fopen(file_name.c_str(), "rb");
+  if (!file) {
+    printf("> Error loading file!\n");
+    exit(1);
+  }
   fseek(file, 0L, SEEK_END);
   size_t file_size = ftell(file);
+  wasm_byte_vec_new_uninitialized(&wasm, file_size);
   fseek(file, 0L, SEEK_SET);
-  wasm_byte_vec_t wat;
-  wasm_byte_vec_new_uninitialized(&wat, file_size);
-  if (fread(wat.data, file_size, 1, file) != 1) {
+  if (fread(wasm.data, file_size, 1, file) != 1) {
     printf("> Error loading module!\n");
-    return 1;
+    exit(1);
   }
   fclose(file);
 
-  // Parse the wat into the binary wasm format
-  wasm_byte_vec_t wasm;
-  wasmtime_error_t *error = wasmtime_wat2wasm(wat.data, wat.size, &wasm);
-  if (error != NULL)
-    exit_with_error("failed to parse wat", error, NULL);
-  wasm_byte_vec_delete(&wat);
-
-  // Now that we've got our binary webassembly we can compile our module.
-  printf("Compiling module...\n");
+  // Compile our modules
   wasmtime_module_t *module = NULL;
   error = wasmtime_module_new(engine, (uint8_t *)wasm.data, wasm.size, &module);
-  wasm_byte_vec_delete(&wasm);
-  if (error != NULL)
+  if (!module)
     exit_with_error("failed to compile module", error, NULL);
+  wasm_byte_vec_delete(&wasm);
 
-  // Next up we need to create the function that the wasm module imports. Here
-  // we'll be hooking up a thunk function to the `hello_callback` native
-  // function above. Note that we can assign custom data, but we just use NULL
-  // for now).
-  printf("Creating callback...\n");
-  wasm_functype_t *hello_ty = wasm_functype_new_0_0();
-  wasmtime_func_t hello;
-  wasmtime_func_new(context, hello_ty, hello_callback, NULL, NULL, &hello);
-
-  // With our callback function we can now instantiate the compiled module,
-  // giving us an instance we can then execute exports from. Note that
-  // instantiation can trap due to execution of the `start` function, so we need
-  // to handle that here too.
-  printf("Instantiating module...\n");
+  // Instantiate wasi
+  wasi_config_t *wasi_config = wasi_config_new();
+  assert(wasi_config);
+  wasi_config_inherit_argv(wasi_config);
+  wasi_config_inherit_env(wasi_config);
+  wasi_config_inherit_stdin(wasi_config);
+  wasi_config_inherit_stdout(wasi_config);
+  wasi_config_inherit_stderr(wasi_config);
   wasm_trap_t *trap = NULL;
-  wasmtime_instance_t instance;
-  wasmtime_extern_t import;
-  import.kind = WASMTIME_EXTERN_FUNC;
-  import.of.func = hello;
-  error = wasmtime_instance_new(context, module, &import, 1, &instance, &trap);
-  if (error != NULL || trap != NULL)
-    exit_with_error("failed to instantiate", error, trap);
+  error = wasmtime_context_set_wasi(context, wasi_config);
+  if (error != NULL)
+    exit_with_error("failed to instantiate WASI", error, NULL);
 
-  // Lookup our `run` export function
-  printf("Extracting export...\n");
-  wasmtime_extern_t run;
-  bool ok = wasmtime_instance_export_get(context, &instance, "run", 3, &run);
-  assert(ok);
-  assert(run.kind == WASMTIME_EXTERN_FUNC);
+  // Instantiate the module
+  error = wasmtime_linker_module(linker, context, "", 0, module);
+  if (error != NULL)
+    exit_with_error("failed to instantiate module", error, NULL);
 
-  // And call it!
-  printf("Calling export...\n");
-  error = wasmtime_func_call(context, &run.of.func, NULL, 0, NULL, 0, &trap);
+  // Run it.
+  wasmtime_func_t func;
+  error = wasmtime_linker_get_default(linker, context, "", 0, &func);
+  if (error != NULL)
+    exit_with_error("failed to locate default export for module", error, NULL);
+
+  error = wasmtime_func_call(context, &func, NULL, 0, NULL, 0, &trap);
   if (error != NULL || trap != NULL)
-    exit_with_error("failed to call function", error, trap);
+    exit_with_error("error calling default export", error, trap);
 
   // Clean up after ourselves at this point
-  printf("All finished!\n");
-  ret = 0;
-
   wasmtime_module_delete(module);
   wasmtime_store_delete(store);
   wasm_engine_delete(engine);
-  return ret;
+  return 0;
 }
 
 static void exit_with_error(const char *message, wasmtime_error_t *error,
