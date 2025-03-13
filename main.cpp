@@ -227,12 +227,17 @@ int main(int argc, char* argv[]) {
   // Parse options
   cxxopts::Options options("MyProgram", "One line description of MyProgram");
   options.add_options()
-    ("d,debug", "Enable debugging") // a bool parameter
-    ("i,integer", "Int param", cxxopts::value<int>())
-    ("f,file", "File name", cxxopts::value<std::string>())
-    ("v,verbose", "Verbose output", cxxopts::value<bool>()->default_value("false"))
+    ("f,file", "Please input wasm file (required)", cxxopts::value<std::string>())
+    ("h,help", "help output", cxxopts::value<bool>()->default_value("false"))
     ;
   auto result = options.parse(argc, argv);
+
+    // help オプションが指定されたらヘルプを表示して終了
+    if (result.count("help") > 0 || result.count("file") == 0) {
+        std::cout << options.help() << std::endl;
+        return 0;
+    }
+
   string file_name = result["file"].as<string>();
   assert(file_name.size() != 0);
 
