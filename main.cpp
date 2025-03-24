@@ -29,6 +29,7 @@ mkdir build && cd build && cmake .. && cmake --build . --target wasmtime-hello
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <ucontext.h>
 
 #include <wasm.h>
 #include <wasmtime.h>
@@ -150,9 +151,33 @@ public:
 
 VMCxt *vm = nullptr;
 
+inline void print_metadata() {
+    uint32_t a = 0xDEADBEEF;  // 取得したい値
+    uint32_t value;
+    uint32_t *a_ptr = &a;     // アドレス取得
+
+    asm volatile (
+        "movl (%1), %0"  // a_ptr の指すアドレスから 4 バイトロード
+        : "=r" (value)   // 出力オペランド
+        : "r" (a_ptr)    // 入力オペランド
+        :                // 使用するレジスタを指定しない (コンパイラに任せる)
+    );
+
+    printf("Value at address %p: 0x%X\n", (void*)a_ptr, value);
+}
+
 // SIGTRAP シグナルハンドラ
-void sigtrap_handler(int sig) {
+void sigtrap_handler(int sig, siginfo_t *info, void *context) {
     printf("Caught SIGTRAP (signal number: %d)\n", sig);
+
+    // print stack
+    ucontext_t *ctx = (ucontext_t *)context;
+    uintptr_t *rsp = (uintptr_t *)ctx->uc_mcontext.gregs[REG_RSP];
+    uintptr_t *target_addr = (uintptr_t *)((uintptr_t)rsp + 100);
+    uintptr_t value = *target_addr;
+
+    printf("RSP: %p\n", (void*)rsp);
+    printf("Value at RSP + 100: 0x%lx\n", value);
 
     // checkpoint memory
     vector<uint8_t> memory = vm->get_memory();
@@ -176,7 +201,8 @@ void register_sigtrap() {
 #else
     struct sigaction sa {};
     sigemptyset(&sa.sa_mask);
-    sa.sa_handler = sigtrap_handler;
+    // sa.sa_handler = sigtrap_handler;
+    sa.sa_sigaction = sigtrap_handler;
     sa.sa_flags = SA_RESTART;
 
     // Register the signal handler for SIGTRAP
