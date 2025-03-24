@@ -169,10 +169,22 @@ inline void print_metadata() {
     printf("Value at address %p: 0x%X\n", (void*)a_ptr, value);
 }
 
-void check_magic_number(uintptr_t rsp) {
+inline void check_magic_number(uintptr_t rsp) {
     uint32_t magic = *(uint32_t *)(rsp + 100);
     assert(magic == 0xdeadbeaf);
     printf("Check magic number\n");
+}
+
+inline void print_stack(uintptr_t rsp) {
+  check_magic_number();
+
+  printf("[");
+  const int stack_size = 2;
+  for (int i = 1; i < stack_size; i++) {
+    uint32_t stack = *(uint32_t *)(rsp + 200 + i);
+    printf("%d, ", stack);
+  }
+  printf("]\n");
 }
 
 // SIGTRAP シグナルハンドラ
@@ -182,7 +194,7 @@ void sigtrap_handler(int sig, siginfo_t *info, void *context) {
     // print stack
     ucontext_t *ctx = (ucontext_t *)context;
     uintptr_t rsp = ctx->uc_mcontext.gregs[REG_RSP];
-    check_magic_number(rsp);
+    print_stack(rsp);
 
     // checkpoint memory
     vector<uint8_t> memory = vm->get_memory();
