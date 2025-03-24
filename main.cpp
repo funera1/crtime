@@ -151,6 +151,9 @@ public:
 
 VMCxt *vm = nullptr;
 
+#define ALTSTACK_SIZE 8192
+static char altstack[ALTSTACK_SIZE];
+
 inline void print_metadata() {
     uint32_t a = 0xDEADBEEF;  // 取得したい値
     uint32_t value;
@@ -200,16 +203,23 @@ void register_sigtrap() {
     // SPDLOG_DEBUG("SIGILL registered");
 #else
     struct sigaction sa {};
-    sigemptyset(&sa.sa_mask);
-    // sa.sa_handler = sigtrap_handler;
+    // sa.sa_flags = SA_RESTART;
+    sa.sa_flags = SA_SIGINFO | SA_ONSTACK;
     sa.sa_sigaction = sigtrap_handler;
-    sa.sa_flags = SA_RESTART;
+    sigemptyset(&sa.sa_mask);
 
     // Register the signal handler for SIGTRAP
     if (sigaction(SIGTRAP, &sa, nullptr) == -1) {
         // SPDLOG_ERROR("Error: cannot handle SIGTRAP");
         exit(-1);
     }
+    
+    // 代替スタックの設定
+    stack_t ss;
+    ss.ss_sp = altstack;
+    ss.ss_size = ALTSTACK_SIZE;
+    ss.ss_flags = 0;
+    sigaltstack(&ss, NULL);
 #endif
 }
 
