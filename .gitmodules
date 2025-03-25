@@ -7,3 +7,6 @@
 [submodule "third_party/yalantinglibs"]
 	path = third_party/yalantinglibs
 	url = https://github.com/alibaba/yalantinglibs.git
+[submodule "third_party/spdlog"]
+	path = third_party/spdlog
+	url = https://github.com/gabime/spdlog.git

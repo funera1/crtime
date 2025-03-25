@@ -36,6 +36,7 @@ mkdir build && cd build && cmake .. && cmake --build . --target wasmtime-hello
 #include <cxxopts.hpp>
 #include <ylt/struct_pack.hpp>
 #include <ylt/struct_json/json_writer.h>
+#include <spdlog/spdlog.h>
 #include "regs.h"
 
 using namespace std;
@@ -282,7 +283,8 @@ wasm_byte_vec_t load_wasm_file(string file_name) {
 
 int main(int argc, char* argv[]) {
   // Init logger
-  // spdlog::cfg::load_env_levels();
+  spdlog::set_level(spdlog::level::trace);
+  spdlog::debug("Hello spdlog");
 
   // Parse options
   cxxopts::Options options("MyProgram", "One line description of MyProgram");

@@ -17,4 +17,8 @@ target_include_directories(crtime PUBLIC cxxopts)
 add_subdirectory(third_party/yalantinglibs)
 target_link_libraries(crtime PUBLIC yalantinglibs::yalantinglibs)
 target_include_directories(crtime PUBLIC yalantinglibs/include)
-# target_compile_features(crtime PRIVATE cxx_std_20)
+
+# spdlog
+add_subdirectory(third_party/spdlog)
+target_link_libraries(crtime PUBLIC spdlog::spdlog)
+# target_include_directories(crtime PUBLIC yalantinglibs/include)
