@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 project(CRTIME CXX)
 
-add_executable(crtime main.cpp)
+add_executable(crtime main.cpp regs.cpp)
 
 # wasmtime
 add_subdirectory(third_party/wasmtime/crates/c-api)

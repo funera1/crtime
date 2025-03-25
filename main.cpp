@@ -36,25 +36,9 @@ mkdir build && cd build && cmake .. && cmake --build . --target wasmtime-hello
 #include <cxxopts.hpp>
 #include <ylt/struct_pack.hpp>
 #include <ylt/struct_json/json_writer.h>
+#include "regs.h"
 
 using namespace std;
-
-const uint8_t ENC_RAX = 0;
-const uint8_t ENC_RCX = 1;
-const uint8_t ENC_RDX = 2;
-const uint8_t ENC_RBX = 3;
-const uint8_t ENC_RSP = 4;
-const uint8_t ENC_RBP = 5;
-const uint8_t ENC_RSI = 6;
-const uint8_t ENC_RDI = 7;
-const uint8_t ENC_R8 = 8;
-const uint8_t ENC_R9 = 9;
-const uint8_t ENC_R10 = 10;
-const uint8_t ENC_R11 = 11;
-const uint8_t ENC_R12 = 12;
-const uint8_t ENC_R13 = 13;
-const uint8_t ENC_R14 = 14;
-const uint8_t ENC_R15 = 15;
 
 static void exit_with_error(const char *message, wasmtime_error_t *error,
                             wasm_trap_t *trap);
@@ -171,48 +155,14 @@ VMCxt *vm = nullptr;
 #define ALTSTACK_SIZE 8192
 static char altstack[ALTSTACK_SIZE];
 
-inline void print_metadata() {
-    uint32_t a = 0xDEADBEEF;  // 取得したい値
-    uint32_t value;
-    uint32_t *a_ptr = &a;     // アドレス取得
-
-    asm volatile (
-        "movl (%1), %0"  // a_ptr の指すアドレスから 4 バイトロード
-        : "=r" (value)   // 出力オペランド
-        : "r" (a_ptr)    // 入力オペランド
-        :                // 使用するレジスタを指定しない (コンパイラに任せる)
-    );
-
-    printf("Value at address %p: 0x%X\n", (void*)a_ptr, value);
-}
-
 inline void check_magic_number(uintptr_t rsp) {
     uint32_t magic = *(uint32_t *)(rsp + 100);
     assert(magic == 0xdeadbeaf);
     printf("Check magic number\n");
 }
 
-inline string realreg_name(uint32_t reg_hw_enc) {
-    switch (reg_hw_enc) {
-      case ENC_RAX:
-        return "%rax";
-      default:
-        return "hoge";
-    }
-}
-
-inline uint8_t realreg_key(uint32_t reg_hw_enc) {
-    switch (reg_hw_enc) {
-      case ENC_RAX:
-        return REG_RAX;
-      default:
-        return -1;
-    }
-}
-
-// inline void print_stack(uintptr_t rsp) {
-inline void print_stack(ucontext_t *ctx) {
-  uintptr_t rsp = ctx->uc_mcontext.gregs[REG_RSP];
+inline void print_stack(vector<uintptr_t> regs) {
+  uintptr_t rsp = regs[ENC_RSP];
   check_magic_number(rsp);
 
   // metadataを取得
@@ -232,9 +182,7 @@ inline void print_stack(ucontext_t *ctx) {
     // vにはreg.hw_encかmemoryのoffsetが入っている
     // 16未満ならreg, 16以上なら
     if (v[i] < 16) {
-        stack[i] = ctx->uc_mcontext.gregs[
-          realreg_key(v[i])
-        ];
+      stack[i] = regs[v[i]];
     }
     else {
     }
@@ -242,33 +190,12 @@ inline void print_stack(ucontext_t *ctx) {
   
   // print stack
   printf("stack contents: [");
-  for (int i = 1; i < stack_size+1; i++) {
+  for (int i = 0; i < stack_size; i++) {
     printf("%d, ", stack[i]);
   }
   printf("]\n");
 }
 
-inline vector<uintptr_t> save_regs(context_t *ctx) {
-  vector<uintptr_t> regs(16); 
-  regs[ENC_RAX] = ctx->uc_mcontext.gregs[REG_RAX];
-  regs[ENC_RCX] = ctx->uc_mcontext.gregs[REG_RCX];
-  regs[ENC_RDX] = ctx->uc_mcontext.gregs[REG_RDX];
-  regs[ENC_RBX] = ctx->uc_mcontext.gregs[REG_RBX];
-  regs[ENC_RSP] = ctx->uc_mcontext.gregs[REG_RSP];
-  regs[ENC_RBP] = ctx->uc_mcontext.gregs[REG_RBP];
-  regs[ENC_RSI] = ctx->uc_mcontext.gregs[REG_RSI];
-  regs[ENC_RDI] = ctx->uc_mcontext.gregs[REG_RDI];
-  regs[ENC_R8] = ctx->uc_mcontext.gregs[REG_R8];
-  regs[ENC_R9] = ctx->uc_mcontext.gregs[REG_R9];
-  regs[ENC_R10] = ctx->uc_mcontext.gregs[REG_R10];
-  regs[ENC_R11] = ctx->uc_mcontext.gregs[REG_R11];
-  regs[ENC_R12] = ctx->uc_mcontext.gregs[REG_R12];
-  regs[ENC_R13] = ctx->uc_mcontext.gregs[REG_R13];
-  regs[ENC_R14] = ctx->uc_mcontext.gregs[REG_R14];
-  regs[ENC_R15] = ctx->uc_mcontext.gregs[REG_R15];
-  
-  return regs;
-}
 
 // SIGTRAP シグナルハンドラ
 void sigtrap_handler(int sig, siginfo_t *info, void *context) {
@@ -277,9 +204,8 @@ void sigtrap_handler(int sig, siginfo_t *info, void *context) {
     // print stack
     ucontext_t *ctx = (ucontext_t *)context;
     // 最初にレジスタ全部退避させておく
-    uintptr_t rax = ctx->uc_mcontext.gregs[REG_RAX];
-    printf("rax: %d\n", rax);
-    print_stack(ctx);
+    vector<uintptr_t> regs = save_regs(ctx);
+    print_stack(regs);
 
     // checkpoint memory
     vector<uint8_t> memory = vm->get_memory();
@@ -302,7 +228,6 @@ void register_sigtrap() {
     // SPDLOG_DEBUG("SIGILL registered");
 #else
     struct sigaction sa {};
-    // sa.sa_flags = SA_RESTART;
     sa.sa_flags = SA_SIGINFO | SA_ONSTACK;
     sa.sa_sigaction = sigtrap_handler;
     sigemptyset(&sa.sa_mask);
