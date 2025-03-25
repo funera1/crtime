@@ -39,6 +39,23 @@ mkdir build && cd build && cmake .. && cmake --build . --target wasmtime-hello
 
 using namespace std;
 
+const uint8_t ENC_RAX = 0;
+const uint8_t ENC_RCX = 1;
+const uint8_t ENC_RDX = 2;
+const uint8_t ENC_RBX = 3;
+const uint8_t ENC_RSP = 4;
+const uint8_t ENC_RBP = 5;
+const uint8_t ENC_RSI = 6;
+const uint8_t ENC_RDI = 7;
+const uint8_t ENC_R8 = 8;
+const uint8_t ENC_R9 = 9;
+const uint8_t ENC_R10 = 10;
+const uint8_t ENC_R11 = 11;
+const uint8_t ENC_R12 = 12;
+const uint8_t ENC_R13 = 13;
+const uint8_t ENC_R14 = 14;
+const uint8_t ENC_R15 = 15;
+
 static void exit_with_error(const char *message, wasmtime_error_t *error,
                             wasm_trap_t *trap);
 
@@ -175,16 +192,82 @@ inline void check_magic_number(uintptr_t rsp) {
     printf("Check magic number\n");
 }
 
-inline void print_stack(uintptr_t rsp) {
-  check_magic_number();
+inline string realreg_name(uint32_t reg_hw_enc) {
+    switch (reg_hw_enc) {
+      case ENC_RAX:
+        return "%rax";
+      default:
+        return "hoge";
+    }
+}
 
-  printf("[");
-  const int stack_size = 2;
-  for (int i = 1; i < stack_size; i++) {
-    uint32_t stack = *(uint32_t *)(rsp + 200 + i);
-    printf("%d, ", stack);
+inline uint8_t realreg_key(uint32_t reg_hw_enc) {
+    switch (reg_hw_enc) {
+      case ENC_RAX:
+        return REG_RAX;
+      default:
+        return -1;
+    }
+}
+
+// inline void print_stack(uintptr_t rsp) {
+inline void print_stack(ucontext_t *ctx) {
+  uintptr_t rsp = ctx->uc_mcontext.gregs[REG_RSP];
+  check_magic_number(rsp);
+
+  // metadataを取得
+  vector<int> v(0); 
+  printf("reg_ids: [");
+  const int stack_size = 1;
+  for (int i = 1; i < stack_size+1; i++) {
+    uint32_t metadata = *(uint32_t *)(rsp + 200 + i);
+    v.push_back(metadata);
+    printf("%d, ", metadata);
   }
   printf("]\n");
+  
+  // metadataからスタックの値を取得
+  vector<int> stack(stack_size);
+  for (int i = 0; i < v.size(); i++) {
+    // vにはreg.hw_encかmemoryのoffsetが入っている
+    // 16未満ならreg, 16以上なら
+    if (v[i] < 16) {
+        stack[i] = ctx->uc_mcontext.gregs[
+          realreg_key(v[i])
+        ];
+    }
+    else {
+    }
+  }
+  
+  // print stack
+  printf("stack contents: [");
+  for (int i = 1; i < stack_size+1; i++) {
+    printf("%d, ", stack[i]);
+  }
+  printf("]\n");
+}
+
+inline vector<uintptr_t> save_regs(context_t *ctx) {
+  vector<uintptr_t> regs(16); 
+  regs[ENC_RAX] = ctx->uc_mcontext.gregs[REG_RAX];
+  regs[ENC_RCX] = ctx->uc_mcontext.gregs[REG_RCX];
+  regs[ENC_RDX] = ctx->uc_mcontext.gregs[REG_RDX];
+  regs[ENC_RBX] = ctx->uc_mcontext.gregs[REG_RBX];
+  regs[ENC_RSP] = ctx->uc_mcontext.gregs[REG_RSP];
+  regs[ENC_RBP] = ctx->uc_mcontext.gregs[REG_RBP];
+  regs[ENC_RSI] = ctx->uc_mcontext.gregs[REG_RSI];
+  regs[ENC_RDI] = ctx->uc_mcontext.gregs[REG_RDI];
+  regs[ENC_R8] = ctx->uc_mcontext.gregs[REG_R8];
+  regs[ENC_R9] = ctx->uc_mcontext.gregs[REG_R9];
+  regs[ENC_R10] = ctx->uc_mcontext.gregs[REG_R10];
+  regs[ENC_R11] = ctx->uc_mcontext.gregs[REG_R11];
+  regs[ENC_R12] = ctx->uc_mcontext.gregs[REG_R12];
+  regs[ENC_R13] = ctx->uc_mcontext.gregs[REG_R13];
+  regs[ENC_R14] = ctx->uc_mcontext.gregs[REG_R14];
+  regs[ENC_R15] = ctx->uc_mcontext.gregs[REG_R15];
+  
+  return regs;
 }
 
 // SIGTRAP シグナルハンドラ
@@ -193,8 +276,10 @@ void sigtrap_handler(int sig, siginfo_t *info, void *context) {
 
     // print stack
     ucontext_t *ctx = (ucontext_t *)context;
-    uintptr_t rsp = ctx->uc_mcontext.gregs[REG_RSP];
-    print_stack(rsp);
+    // 最初にレジスタ全部退避させておく
+    uintptr_t rax = ctx->uc_mcontext.gregs[REG_RAX];
+    printf("rax: %d\n", rax);
+    print_stack(ctx);
 
     // checkpoint memory
     vector<uint8_t> memory = vm->get_memory();
