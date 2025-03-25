@@ -37,9 +37,15 @@ mkdir build && cd build && cmake .. && cmake --build . --target wasmtime-hello
 #include <ylt/struct_pack.hpp>
 #include <ylt/struct_json/json_writer.h>
 #include <spdlog/spdlog.h>
+
 #include "regs.h"
+#include "stack.h"
 
 using namespace std;
+
+VMCxt *vm = nullptr;
+#define ALTSTACK_SIZE 8192
+static char altstack[ALTSTACK_SIZE];
 
 static void exit_with_error(const char *message, wasmtime_error_t *error,
                             wasm_trap_t *trap);
@@ -150,52 +156,6 @@ public:
       return globals;
   }
 };
-
-VMCxt *vm = nullptr;
-
-#define ALTSTACK_SIZE 8192
-static char altstack[ALTSTACK_SIZE];
-
-inline void check_magic_number(uintptr_t rsp) {
-    uint32_t magic = *(uint32_t *)(rsp + 100);
-    assert(magic == 0xdeadbeaf);
-    printf("Check magic number\n");
-}
-
-inline void print_stack(vector<uintptr_t> regs) {
-  uintptr_t rsp = regs[ENC_RSP];
-  check_magic_number(rsp);
-
-  // metadataを取得
-  vector<int> v(0); 
-  printf("reg_ids: [");
-  const int stack_size = 1;
-  for (int i = 1; i < stack_size+1; i++) {
-    uint32_t metadata = *(uint32_t *)(rsp + 200 + i);
-    v.push_back(metadata);
-    printf("%d, ", metadata);
-  }
-  printf("]\n");
-  
-  // metadataからスタックの値を取得
-  vector<int> stack(stack_size);
-  for (int i = 0; i < v.size(); i++) {
-    // vにはreg.hw_encかmemoryのoffsetが入っている
-    // 16未満ならreg, 16以上なら
-    if (v[i] < 16) {
-      stack[i] = regs[v[i]];
-    }
-    else {
-    }
-  }
-  
-  // print stack
-  printf("stack contents: [");
-  for (int i = 0; i < stack_size; i++) {
-    printf("%d, ", stack[i]);
-  }
-  printf("]\n");
-}
 
 
 // SIGTRAP シグナルハンドラ
