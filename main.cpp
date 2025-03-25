@@ -43,6 +43,7 @@ mkdir build && cd build && cmake .. && cmake --build . --target wasmtime-hello
 
 using namespace std;
 
+class VMCxt;
 VMCxt *vm = nullptr;
 #define ALTSTACK_SIZE 8192
 static char altstack[ALTSTACK_SIZE];
