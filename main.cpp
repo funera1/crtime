@@ -24,6 +24,7 @@ mkdir build && cd build && cmake .. && cmake --build . --target wasmtime-hello
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <optional>
 
 #include <assert.h>
 #include <stdio.h>
@@ -93,6 +94,27 @@ public:
       exit_with_error("error instance module", error, trap);
 
     return instance;
+  }
+  
+  optional<vector<uint8_t>> get_address_map() {
+    // moduleのNULLチェック
+    if (module == NULL) {
+      spdlog::error("module is NULL");
+      return nullopt;
+    }
+
+    // Wasmtimeから生のaddress_mapをもらう
+    uint8_t* data;
+    size_t len;
+    wasmtime_module_raw_address_map(module, &data, &len);
+    vector<uint8_t> address_map_data(data, data+len);
+    
+    // cout << "address_map_data: [" << endl;
+    // for (auto vi : address_map_data) cout << +vi << " ";
+    // cout << "]" << endl;
+    
+    // 生のaddress_mapを加工
+    return nullopt;
   }
 
   vector<uint8_t> get_memory() {
@@ -167,7 +189,8 @@ void sigtrap_handler(int sig, siginfo_t *info, void *context) {
     ucontext_t *ctx = (ucontext_t *)context;
     // 最初にレジスタ全部退避させておく
     vector<uintptr_t> regs = save_regs(ctx);
-    print_stack(regs);
+    vm->get_address_map();
+    // print_stack(regs);
 
     // checkpoint memory
     vector<uint8_t> memory = vm->get_memory();
