@@ -97,27 +97,6 @@ public:
     return instance;
   }
   
-  optional<vector<uint8_t>> get_raw_address_map() {
-    // moduleのNULLチェック
-    if (module == NULL) {
-      spdlog::error("module is NULL");
-      return nullopt;
-    }
-
-    // Wasmtimeから生のaddress_mapをもらう
-    uint8_t* data;
-    size_t len;
-    wasmtime_module_raw_address_map(module, &data, &len);
-    vector<uint8_t> address_map_data(data, data+len);
-    
-    // cout << "address_map_data: [" << endl;
-    // for (auto vi : address_map_data) cout << +vi << " ";
-    // cout << "]" << endl;
-    
-    // 生のaddress_mapを加工
-    return nullopt;
-  }
-
   optional<vector<wasmtime_addrmap_entry_t>> get_address_map() {
     // moduleのNULLチェック
     if (module == NULL) {
@@ -125,19 +104,13 @@ public:
       return nullopt;
     }
 
-    // Wasmtimeから生のaddress_mapをもらう
+    // Wasmtimeからaddress_mapをもらう
     wasmtime_addrmap_entry_t* data;
     size_t len;
     wasmtime_module_address_map(module, &data, &len);
-    vector<wasmtime_addrmap_entry_t> address_map_data(data, data+len);
-    spdlog::debug("get address map");
+    vector<wasmtime_addrmap_entry_t> address_map(data, data+len);
     
-    cout << "address_map_data: [";
-    for (auto vi : address_map_data) cout << format("({}, {})", vi.wasm_offset, vi.code_offset)  << endl;
-    cout << "]" << endl;
-    
-    // 生のaddress_mapを加工
-    return nullopt;
+    return address_map;
   }
 
   vector<uint8_t> get_memory() {
@@ -207,7 +180,6 @@ public:
 // SIGTRAP シグナルハンドラ
 void sigtrap_handler(int sig, siginfo_t *info, void *context) {
     printf("Caught SIGTRAP (signal number: %d)\n", sig);
-    printf("hoge");
 
     // print stack
     ucontext_t *ctx = (ucontext_t *)context;
