@@ -25,6 +25,7 @@ mkdir build && cd build && cmake .. && cmake --build . --target wasmtime-hello
 #include <fstream>
 #include <string>
 #include <optional>
+#include <format>
 
 #include <assert.h>
 #include <stdio.h>
@@ -96,7 +97,7 @@ public:
     return instance;
   }
   
-  optional<vector<uint8_t>> get_address_map() {
+  optional<vector<uint8_t>> get_raw_address_map() {
     // moduleのNULLチェック
     if (module == NULL) {
       spdlog::error("module is NULL");
@@ -112,6 +113,28 @@ public:
     // cout << "address_map_data: [" << endl;
     // for (auto vi : address_map_data) cout << +vi << " ";
     // cout << "]" << endl;
+    
+    // 生のaddress_mapを加工
+    return nullopt;
+  }
+
+  optional<vector<wasmtime_addrmap_entry_t>> get_address_map() {
+    // moduleのNULLチェック
+    if (module == NULL) {
+      spdlog::error("module is NULL");
+      return nullopt;
+    }
+
+    // Wasmtimeから生のaddress_mapをもらう
+    wasmtime_addrmap_entry_t* data;
+    size_t len;
+    wasmtime_module_address_map(module, &data, &len);
+    vector<wasmtime_addrmap_entry_t> address_map_data(data, data+len);
+    spdlog::debug("get address map");
+    
+    cout << "address_map_data: [";
+    for (auto vi : address_map_data) cout << format("({}, {})", vi.wasm_offset, vi.code_offset)  << endl;
+    cout << "]" << endl;
     
     // 生のaddress_mapを加工
     return nullopt;
@@ -184,12 +207,16 @@ public:
 // SIGTRAP シグナルハンドラ
 void sigtrap_handler(int sig, siginfo_t *info, void *context) {
     printf("Caught SIGTRAP (signal number: %d)\n", sig);
+    printf("hoge");
 
     // print stack
     ucontext_t *ctx = (ucontext_t *)context;
     // 最初にレジスタ全部退避させておく
     vector<uintptr_t> regs = save_regs(ctx);
+    spdlog::debug("Save registers");
+
     vm->get_address_map();
+    spdlog::debug("Get address map");
     // print_stack(regs);
 
     // checkpoint memory
