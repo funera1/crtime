@@ -15,7 +15,7 @@ wasm_memory.img wasm_global.img
 ## TODO
 - [x] checkpoint memory
 - [x] checkpoint global
-- [ ] checkpoint program counter
+- [x] checkpoint program counter
 - [ ] checkpoint stack
 - [ ] restore memory
 - [ ] restore global
