@@ -70,6 +70,25 @@ bool write_binary(string filepath, uint8_t *data, size_t size){
     return true;
 }
 
+class AddressMap {
+public:
+    uintptr_t base_address;
+    vector<wasmtime_addrmap_entry_t> addrmap;
+
+    AddressMap(uintptr_t base_addr, vector<wasmtime_addrmap_entry_t> addrmap) : base_address(base_addr), addrmap(addrmap){}
+
+    uint32_t get_wasm_offset(uintptr_t rip) {
+        uint32_t pc_code_offset = rip - base_address;
+        for (auto addr : addrmap) {
+            if (addr.code_offset == pc_code_offset) {
+              return addr.wasm_offset;
+            }
+        }
+        spdlog::debug("Not found target wasm offset in address map");
+        return 0xdeadbeaf;
+    }
+};
+  
 class VMCxt {
 public:
   wasm_engine_t *engine;
@@ -97,7 +116,7 @@ public:
     return instance;
   }
   
-  optional<vector<wasmtime_addrmap_entry_t>> get_address_map() {
+  optional<AddressMap> get_address_map() {
     // moduleのNULLチェック
     if (module == NULL) {
       spdlog::error("module is NULL");
@@ -107,10 +126,16 @@ public:
     // Wasmtimeからaddress_mapをもらう
     wasmtime_addrmap_entry_t* data;
     size_t len;
-    wasmtime_module_address_map(module, &data, &len);
+    uintptr_t base_addr;
+    wasmtime_module_address_map(module, &data, &len, &base_addr);
     vector<wasmtime_addrmap_entry_t> address_map(data, data+len);
     
-    return address_map;
+    string s = "(code offs, wasm offs): [";
+    for (auto ad : address_map) s += format(" ({}, {}) ", ad.code_offset, ad.wasm_offset);
+    s += "]";
+    spdlog::info("{:s}", s);
+    
+    return AddressMap(base_addr, address_map);
   }
 
   vector<uint8_t> get_memory() {
@@ -120,7 +145,7 @@ public:
       string name = "memory";
       bool ok = wasmtime_instance_export_get(context, &instance, name.c_str(), name.size(), &export_);
       if (!ok || export_.kind != WASMTIME_EXTERN_MEMORY) {
-        printf("Failed to get memory export\n");
+        spdlog::error("failed to get memory export");
         return vector<uint8_t>();
       }
 
@@ -179,31 +204,45 @@ public:
 
 // SIGTRAP シグナルハンドラ
 void sigtrap_handler(int sig, siginfo_t *info, void *context) {
-    printf("Caught SIGTRAP (signal number: %d)\n", sig);
+    /* printf("Caught SIGTRAP (signal number: %d)\n", sig); */
+    spdlog::debug("Caught SIGTRAP");
 
-    // print stack
-    ucontext_t *ctx = (ucontext_t *)context;
     // 最初にレジスタ全部退避させておく
+    ucontext_t *ctx = (ucontext_t *)context;
     vector<uintptr_t> regs = save_regs(ctx);
     spdlog::debug("Save registers");
 
-    vm->get_address_map();
-    spdlog::debug("Get address map");
-    // print_stack(regs);
+    // checkpoint the program counter
+    auto ret = vm->get_address_map();
+    if (!ret.has_value()) {
+        spdlog::error("failed to get address map");
+        exit(1);
+    }
+    AddressMap addrmap = ret.value();
 
-    // checkpoint memory
-    vector<uint8_t> memory = vm->get_memory();
-    if (!write_binary("wasm_memory.img", memory.data(), memory.size())) {
-      printf("failed to checkpoint memory");
+    // PCのcode offsetからwasm offsetに変換し保存
+    uint32_t pc = addrmap.get_wasm_offset(regs[ENC_RIP]);
+    if (!write_binary("wasm_pc.img", reinterpret_cast<uint8_t*>(&pc), sizeof(pc))) {
+      spdlog::error("failed to checkpoint program counter");
     }
 
-    // checkpoint global
+    // checkpoint the memory
+    vector<uint8_t> memory = vm->get_memory();
+    if (!write_binary("wasm_memory.img", memory.data(), memory.size())) {
+      spdlog::error("failed to checkpoint memory");
+    }
+
+    // checkpoint globals
     vector<global_t> global = vm->get_globals();
     struct globals g{global};
     vector<char> buffer = struct_pack::serialize(g);
     if (!write_binary("wasm_global.img", (uint8_t *)buffer.data(), buffer.size())) {
-      printf("failed to checkpoint global");
+      spdlog::error("failed to checkpoint globals");
     }
+    
+    // resume registers
+    resume_regs(ctx, regs);
+    spdlog::debug("Resume registers");
 }
 
 void register_sigtrap() {

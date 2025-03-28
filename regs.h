@@ -25,7 +25,9 @@ const uint8_t ENC_R12 = 12;
 const uint8_t ENC_R13 = 13;
 const uint8_t ENC_R14 = 14;
 const uint8_t ENC_R15 = 15;
+const uint8_t ENC_RIP = 16;
 
 vector<uintptr_t> save_regs(ucontext_t *ctx);
+void resume_regs(ucontext_t *ctx, vector<uintptr_t> regs);
 
 #endif
