@@ -220,6 +220,9 @@ void sigtrap_handler(int sig, siginfo_t *info, void *context) {
     }
     AddressMap addrmap = ret.value();
 
+    // checkpoint stack
+    wasmtime_module_stack_size_maps(module);
+
     // PCのcode offsetからwasm offsetに変換し保存
     uint32_t pc = addrmap.get_wasm_offset(regs[ENC_RIP]);
     if (!write_binary("wasm_pc.img", reinterpret_cast<uint8_t*>(&pc), sizeof(pc))) {
