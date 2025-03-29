@@ -137,6 +137,12 @@ public:
     
     return AddressMap(base_addr, address_map);
   }
+  
+  void get_stack_size_maps() {
+    if (module == NULL) {
+      spdlog::error("module is NULL");
+    }
+  }
 
   vector<uint8_t> get_memory() {
       wasmtime_instance_t instance = get_instance();
