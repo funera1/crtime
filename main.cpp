@@ -128,20 +128,52 @@ public:
     size_t len;
     uintptr_t base_addr;
     wasmtime_module_address_map(module, &data, &len, &base_addr);
+    spdlog::debug("ptr: {}", static_cast<void *>(data));
+
     vector<wasmtime_addrmap_entry_t> address_map(data, data+len);
     
     string s = "(code offs, wasm offs): [";
     for (auto ad : address_map) s += format(" ({}, {}) ", ad.code_offset, ad.wasm_offset);
     s += "]";
-    spdlog::info("{:s}", s);
+    spdlog::debug("{:s}", s);
     
     return AddressMap(base_addr, address_map);
   }
   
-  void get_stack_size_maps() {
+  vector<vector<uint32_t>> get_stack_size_maps() {
     if (module == NULL) {
       spdlog::error("module is NULL");
     }
+    
+    // stack_size_mapsを取得
+    uint32_t *ssmap_flatten;
+    size_t *lens;
+    size_t count = wasmtime_module_stack_size_maps(module, &ssmap_flatten, &lens);
+    spdlog::info("return wasmtime_module_stack_size_maps");
+    
+    // **const u32をvec<vec<u32>>に変換
+    vector<vector<uint32_t>> stack_size_maps(count);
+    int pos = 0;
+    for (size_t i = 0; i < count; i++) {
+      stack_size_maps[i] = vector<uint32_t>(ssmap_flatten, ssmap_flatten+lens[i]);
+      ssmap_flatten += lens[i];
+      spdlog::debug("len: {:d}", lens[i]);
+    }
+    
+    // debug
+    string s = "(stack size maps): [";
+    for (auto sm : stack_size_maps) {
+      s += " [";
+      for (int i = 0; i < sm.size(); i++) {
+        s += format("{}", sm[i]);
+        if (i != sm.size()-1) s += ", ";
+      }
+      s += "] ";
+    }
+    s += "]";
+    spdlog::debug("{:s}", s);
+    
+    return stack_size_maps;
   }
 
   vector<uint8_t> get_memory() {
@@ -211,12 +243,12 @@ public:
 // SIGTRAP シグナルハンドラ
 void sigtrap_handler(int sig, siginfo_t *info, void *context) {
     /* printf("Caught SIGTRAP (signal number: %d)\n", sig); */
-    spdlog::debug("Caught SIGTRAP");
+    spdlog::info("Caught SIGTRAP");
 
     // 最初にレジスタ全部退避させておく
     ucontext_t *ctx = (ucontext_t *)context;
     vector<uintptr_t> regs = save_regs(ctx);
-    spdlog::debug("Save registers");
+    spdlog::info("Save registers");
 
     // checkpoint the program counter
     auto ret = vm->get_address_map();
@@ -225,21 +257,25 @@ void sigtrap_handler(int sig, siginfo_t *info, void *context) {
         exit(1);
     }
     AddressMap addrmap = ret.value();
+    spdlog::info("Get address map");
 
     // checkpoint stack
-    wasmtime_module_stack_size_maps(module);
+    vm->get_stack_size_maps();
+    spdlog::info("Get stack size map");
 
     // PCのcode offsetからwasm offsetに変換し保存
     uint32_t pc = addrmap.get_wasm_offset(regs[ENC_RIP]);
     if (!write_binary("wasm_pc.img", reinterpret_cast<uint8_t*>(&pc), sizeof(pc))) {
       spdlog::error("failed to checkpoint program counter");
     }
+    spdlog::info("Checkpoint program counter");
 
     // checkpoint the memory
     vector<uint8_t> memory = vm->get_memory();
     if (!write_binary("wasm_memory.img", memory.data(), memory.size())) {
       spdlog::error("failed to checkpoint memory");
     }
+    spdlog::info("Checkpoint memory");
 
     // checkpoint globals
     vector<global_t> global = vm->get_globals();
@@ -248,10 +284,11 @@ void sigtrap_handler(int sig, siginfo_t *info, void *context) {
     if (!write_binary("wasm_global.img", (uint8_t *)buffer.data(), buffer.size())) {
       spdlog::error("failed to checkpoint globals");
     }
-    
+    spdlog::info("Checkpoint globals");
+
     // resume registers
     resume_regs(ctx, regs);
-    spdlog::debug("Resume registers");
+    spdlog::info("Resume registers");
 }
 
 void register_sigtrap() {
