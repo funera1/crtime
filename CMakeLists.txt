@@ -27,3 +27,7 @@ target_include_directories(crtime PUBLIC yalantinglibs/include)
 add_subdirectory(third_party/spdlog)
 target_link_libraries(crtime PUBLIC spdlog::spdlog)
 # target_include_directories(crtime PUBLIC yalantinglibs/include)
+
+# fmtlib
+add_subdirectory(third_party/fmt)
+target_link_libraries(crtime PUBLIC fmt::fmt)

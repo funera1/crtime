@@ -26,6 +26,7 @@ mkdir build && cd build && cmake .. && cmake --build . --target wasmtime-hello
 #include <string>
 #include <optional>
 #include <format>
+#include <fmt/ranges.h>
 
 #include <assert.h>
 #include <stdio.h>
@@ -70,24 +71,24 @@ bool write_binary(string filepath, uint8_t *data, size_t size){
     return true;
 }
 
-class AddressMap {
-public:
-    uintptr_t base_address;
-    vector<wasmtime_addrmap_entry_t> addrmap;
+// class AddressMap {
+// public:
+//     uintptr_t base_address;
+//     vector<wasmtime_addrmap_entry_t> addrmap;
 
-    AddressMap(uintptr_t base_addr, vector<wasmtime_addrmap_entry_t> addrmap) : base_address(base_addr), addrmap(addrmap){}
+//     AddressMap(uintptr_t base_addr, vector<wasmtime_addrmap_entry_t> addrmap) : base_address(base_addr), addrmap(addrmap){}
 
-    uint32_t get_wasm_offset(uintptr_t rip) {
-        uint32_t pc_code_offset = rip - base_address;
-        for (auto addr : addrmap) {
-            if (addr.code_offset == pc_code_offset) {
-              return addr.wasm_offset;
-            }
-        }
-        spdlog::debug("Not found target wasm offset in address map");
-        return 0xdeadbeaf;
-    }
-};
+//     uint32_t get_wasm_offset(uintptr_t rip) {
+//         uint32_t pc_code_offset = rip - base_address;
+//         for (auto addr : addrmap) {
+//             if (addr.code_offset == pc_code_offset) {
+//               return addr.wasm_offset;
+//             }
+//         }
+//         spdlog::debug("Not found target wasm offset in address map");
+//         return 0xdeadbeaf;
+//     }
+// };
   
 class VMCxt {
 public:
@@ -260,8 +261,16 @@ void sigtrap_handler(int sig, siginfo_t *info, void *context) {
     spdlog::info("Get address map");
 
     // checkpoint stack
-    vm->get_stack_size_maps();
+    vector<vector<uint32_t>> stack_size_maps = vm->get_stack_size_maps();
     spdlog::info("Get stack size map");
+    vector<int> stack = reconstruct_stack(regs, addrmap, stack_size_maps);
+    spdlog::debug("stack: [{}]", fmt::join(stack, ", "));
+    spdlog::info("Reconstruct stack");
+
+    if (!write_binary("wasm_stack.img", reinterpret_cast<uint8_t*>(&stack), sizeof(int) * stack.size())) {
+      spdlog::error("failed to checkpoint stack");
+    }
+    spdlog::info("Checkpoint stack");
 
     // PCのcode offsetからwasm offsetに変換し保存
     uint32_t pc = addrmap.get_wasm_offset(regs[ENC_RIP]);
