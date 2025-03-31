@@ -23,7 +23,7 @@ vector<int> reconstruct_stack(vector<uintptr_t> &regs, vector<wasmtime_ssmap_ent
   uintptr_t rsp = regs[ENC_RSP];
   check_magic_number(rsp);
 
-  // TODO: stack_sizeの正しい値を取得
+  // stack_sizeを取得
   uint32_t stack_size = 1;
   for (int i = 0; i < stack_size_map.size(); i++) {
     if (stack_size_map[i].wasm_offset == pc) {
@@ -34,9 +34,10 @@ vector<int> reconstruct_stack(vector<uintptr_t> &regs, vector<wasmtime_ssmap_ent
   spdlog::debug("stack size: {:d}", stack_size);
 
   // metadataを取得
-  vector<int> v(0); 
+  vector<uint32_t> v(0); 
   for (int i = 1; i < stack_size+1; i++) {
     uint32_t metadata = *(uint32_t *)(rsp + 200 + i);
+    assert(0 <= metadata);
     v.push_back(metadata);
   }
 
