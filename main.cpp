@@ -141,40 +141,46 @@ public:
     return AddressMap(base_addr, address_map);
   }
   
-  vector<vector<uint32_t>> get_stack_size_maps() {
+  vector<wasmtime_stacksizemap_entry_t> get_stack_size_maps() {
     if (module == NULL) {
       spdlog::error("module is NULL");
     }
     
     // stack_size_mapsを取得
-    uint32_t *ssmap_flatten;
-    size_t *lens;
-    size_t count = wasmtime_module_stack_size_maps(module, &ssmap_flatten, &lens);
+    wasmtime_stacksizemap_entry_t *data;
+    size_t len;
+    wasmtime_module_stack_size_maps(module, &data, &len);
     spdlog::info("return wasmtime_module_stack_size_maps");
     
-    // **const u32をvec<vec<u32>>に変換
-    vector<vector<uint32_t>> stack_size_maps(count);
-    int pos = 0;
-    for (size_t i = 0; i < count; i++) {
-      stack_size_maps[i] = vector<uint32_t>(ssmap_flatten, ssmap_flatten+lens[i]);
-      ssmap_flatten += lens[i];
-      spdlog::debug("len: {:d}", lens[i]);
-    }
+    vector<wasmtime_stacksizemap_entry_t> stack_size_map(data, data+len);
     
-    // debug
-    string s = "(stack size maps): [";
-    for (auto sm : stack_size_maps) {
-      s += " [";
-      for (int i = 0; i < sm.size(); i++) {
-        s += format("{}", sm[i]);
-        if (i != sm.size()-1) s += ", ";
-      }
-      s += "] ";
-    }
+    // **const u32をvec<vec<u32>>に変換
+    // vector<vector<uint32_t>> stack_size_maps(count);
+    // int pos = 0;
+    // for (size_t i = 0; i < count; i++) {
+    //   stack_size_maps[i] = vector<uint32_t>(ssmap_flatten, ssmap_flatten+lens[i]);
+    //   ssmap_flatten += lens[i];
+    //   spdlog::debug("len: {:d}", lens[i]);
+    // }
+    
+    // // debug
+    string s = "(wasm offs, stack size): [";
+    for (auto iter : stack_size_map) s += format(" ({}, {}) ", iter.wasm_offset, iter.stack_size);
     s += "]";
     spdlog::debug("{:s}", s);
+    // string s = "(stack size maps): [";
+    // for (auto sm : stack_size_maps) {
+    //   s += " [";
+    //   for (int i = 0; i < sm.size(); i++) {
+    //     s += format("{}", sm[i]);
+    //     if (i != sm.size()-1) s += ", ";
+    //   }
+    //   s += "] ";
+    // }
+    // s += "]";
+    // spdlog::debug("{:s}", s);
     
-    return stack_size_maps;
+    return stack_size_map;
   }
 
   vector<uint8_t> get_memory() {
@@ -193,7 +199,6 @@ public:
       size_t size = wasmtime_memory_data_size(context, &memory);
       return vector<uint8_t>(data, data+size);
   }
-
   // TODO: 実装できてない, globalを事前に特定の名前でexportしないといけない設計になっていて良くない
   vector<global_t> get_globals() {
       wasmtime_instance_t instance = get_instance();
@@ -260,10 +265,17 @@ void sigtrap_handler(int sig, siginfo_t *info, void *context) {
     AddressMap addrmap = ret.value();
     spdlog::info("Get address map");
 
+    // checkpoint program counter
+    uint32_t pc = addrmap.get_wasm_offset(regs[ENC_RIP]);
+    if (!write_binary("wasm_pc.img", reinterpret_cast<uint8_t*>(&pc), sizeof(pc))) {
+      spdlog::error("failed to checkpoint program counter");
+    }
+    spdlog::info("Checkpoint program counter");
+
     // checkpoint stack
-    vector<vector<uint32_t>> stack_size_maps = vm->get_stack_size_maps();
+    vector<wasmtime_stacksizemap_entry_t> stack_size_maps = vm->get_stack_size_maps();
     spdlog::info("Get stack size map");
-    vector<int> stack = reconstruct_stack(regs, addrmap, stack_size_maps);
+    vector<int> stack = reconstruct_stack(regs, stack_size_maps, pc);
     spdlog::debug("stack: [{}]", fmt::join(stack, ", "));
     spdlog::info("Reconstruct stack");
 
@@ -271,13 +283,6 @@ void sigtrap_handler(int sig, siginfo_t *info, void *context) {
       spdlog::error("failed to checkpoint stack");
     }
     spdlog::info("Checkpoint stack");
-
-    // PCのcode offsetからwasm offsetに変換し保存
-    uint32_t pc = addrmap.get_wasm_offset(regs[ENC_RIP]);
-    if (!write_binary("wasm_pc.img", reinterpret_cast<uint8_t*>(&pc), sizeof(pc))) {
-      spdlog::error("failed to checkpoint program counter");
-    }
-    spdlog::info("Checkpoint program counter");
 
     // checkpoint the memory
     vector<uint8_t> memory = vm->get_memory();

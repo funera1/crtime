@@ -6,6 +6,7 @@
 using namespace std;
 
 class AddressMap {
+
 public:
     uintptr_t base_address;
     vector<wasmtime_addrmap_entry_t> addrmap;
@@ -23,7 +24,8 @@ public:
         return 0xdeadbeaf;
     }
 };
-vector<int> reconstruct_stack(vector<uintptr_t> &regs, AddressMap &addrmap, vector<vector<uint32_t>> &stack_size_maps);
+// vector<int> reconstruct_stack(vector<uintptr_t> &regs, AddressMap &addrmap, vector<wasmtime_stacksizemap_entry_t> &stack_size_maps);
+vector<int> reconstruct_stack(vector<uintptr_t> &regs, vector<wasmtime_stacksizemap_entry_t> &stack_size_map, uint32_t pc);
 void print_stack(vector<uintptr_t> regs);
 
 #endif
