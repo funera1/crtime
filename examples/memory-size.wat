@@ -1,0 +1,37 @@
+(module
+  (memory $mem 1) ;; メモリサイズ 1ページ（64KB）を確保
+  (func $start (export "_start")
+    memory.size
+    memory.size
+    memory.size
+    memory.size
+    memory.size
+    memory.size
+    memory.size
+    memory.size
+    memory.size
+    memory.size
+    memory.size
+    memory.size
+    memory.size
+    memory.size
+    memory.size
+    memory.size
+    drop
+    drop
+    drop
+    drop
+    drop
+    drop
+    drop
+    drop
+    drop
+    drop
+    drop
+    drop
+    drop
+    drop
+    drop
+    drop
+  )
+)
