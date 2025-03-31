@@ -70,25 +70,6 @@ bool write_binary(string filepath, uint8_t *data, size_t size){
     fout.close();
     return true;
 }
-
-// class AddressMap {
-// public:
-//     uintptr_t base_address;
-//     vector<wasmtime_addrmap_entry_t> addrmap;
-
-//     AddressMap(uintptr_t base_addr, vector<wasmtime_addrmap_entry_t> addrmap) : base_address(base_addr), addrmap(addrmap){}
-
-//     uint32_t get_wasm_offset(uintptr_t rip) {
-//         uint32_t pc_code_offset = rip - base_address;
-//         for (auto addr : addrmap) {
-//             if (addr.code_offset == pc_code_offset) {
-//               return addr.wasm_offset;
-//             }
-//         }
-//         spdlog::debug("Not found target wasm offset in address map");
-//         return 0xdeadbeaf;
-//     }
-// };
   
 class VMCxt {
 public:
@@ -129,14 +110,13 @@ public:
     size_t len;
     uintptr_t base_addr;
     wasmtime_module_address_map(module, &data, &len, &base_addr);
-    spdlog::debug("ptr: {}", static_cast<void *>(data));
 
     vector<wasmtime_addrmap_entry_t> address_map(data, data+len);
     
-    string s = "(code offs, wasm offs): [";
-    for (auto ad : address_map) s += format(" ({}, {}) ", ad.code_offset, ad.wasm_offset);
-    s += "]";
-    spdlog::debug("{:s}", s);
+    // string s = "(code offs, wasm offs): [";
+    // for (auto ad : address_map) s += format(" ({}, {}) ", ad.code_offset, ad.wasm_offset);
+    // s += "]";
+    // spdlog::debug("{:s}", s);
     
     return AddressMap(base_addr, address_map);
   }
@@ -154,29 +134,9 @@ public:
     
     vector<wasmtime_ssmap_entry_t> stack_size_map(data, data+len);
     
-    // **const u32をvec<vec<u32>>に変換
-    // vector<vector<uint32_t>> stack_size_maps(count);
-    // int pos = 0;
-    // for (size_t i = 0; i < count; i++) {
-    //   stack_size_maps[i] = vector<uint32_t>(ssmap_flatten, ssmap_flatten+lens[i]);
-    //   ssmap_flatten += lens[i];
-    //   spdlog::debug("len: {:d}", lens[i]);
-    // }
-    
-    // // debug
-    string s = "(wasm offs, stack size): [";
-    for (auto iter : stack_size_map) s += format(" ({}, {}) ", iter.wasm_offset, iter.stack_size);
-    s += "]";
-    spdlog::debug("{:s}", s);
-    // string s = "(stack size maps): [";
-    // for (auto sm : stack_size_maps) {
-    //   s += " [";
-    //   for (int i = 0; i < sm.size(); i++) {
-    //     s += format("{}", sm[i]);
-    //     if (i != sm.size()-1) s += ", ";
-    //   }
-    //   s += "] ";
-    // }
+    // debug
+    // string s = "(wasm offs, stack size): [";
+    // for (auto iter : stack_size_map) s += format(" ({}, {}) ", iter.wasm_offset, iter.stack_size);
     // s += "]";
     // spdlog::debug("{:s}", s);
     
@@ -387,6 +347,9 @@ int main(int argc, char* argv[]) {
 
   // Register sigtrap handler
   register_sigtrap();
+  
+  // init loggger for wasmtime
+  wasmtime_config_init_logger();
 
   // Set up our context
   wasm_config_t* config = wasm_config_new();

@@ -16,7 +16,7 @@
 void check_magic_number(uintptr_t rsp) {
     uint32_t magic = *(uint32_t *)(rsp + 100);
     assert(magic == 0xdeadbeaf);
-    spdlog::debug("Check magic number\n");
+    spdlog::info("Check magic number\n");
 }
 
 vector<int> reconstruct_stack(vector<uintptr_t> &regs, vector<wasmtime_ssmap_entry_t> &stack_size_map, uint32_t pc) {
