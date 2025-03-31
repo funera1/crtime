@@ -13,15 +13,18 @@
 #include "regs.h"
 #include "stack.h"
 
-void check_magic_number(uintptr_t rsp) {
-    uint32_t magic = *(uint32_t *)(rsp + 100);
-    assert(magic == 0xdeadbeaf);
+void check_magic_number(uintptr_t rbp) {
+    uint32_t magic = *(uint32_t *)(rbp-4);
+    if (magic != 0xdeadbeaf) {
+      spdlog::error("Not match magic number");
+    }
     spdlog::info("Check magic number\n");
 }
 
 vector<int> reconstruct_stack(vector<uintptr_t> &regs, vector<wasmtime_ssmap_entry_t> &stack_size_map, uint32_t pc) {
   uintptr_t rsp = regs[ENC_RSP];
-  check_magic_number(rsp);
+  uintptr_t rbp = regs[ENC_RBP];
+  check_magic_number(rbp);
 
   // stack_sizeを取得
   uint32_t stack_size = -1;
@@ -42,7 +45,7 @@ vector<int> reconstruct_stack(vector<uintptr_t> &regs, vector<wasmtime_ssmap_ent
   // metadataを取得
   vector<uint32_t> v(0); 
   for (int i = 1; i < stack_size+1; i++) {
-    uint32_t metadata = *(uint32_t *)(rsp + 200 + i);
+    uint32_t metadata = *(uint32_t *)(rbp-4*(i+1));
     assert(0 <= metadata);
     v.push_back(metadata);
   }

@@ -18,8 +18,6 @@ public:
         uint32_t pc_code_offset = rip - base_address - 1;
         for (auto addr : addrmap) {
             if (addr.code_offset == pc_code_offset) {
-                spdlog::debug("addr.code_offset: {:d}", addr.code_offset);
-                spdlog::debug("addr.wasm_offset: {:d}", addr.wasm_offset);
               return addr.wasm_offset;
             }
         }
