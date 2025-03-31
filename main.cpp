@@ -141,18 +141,18 @@ public:
     return AddressMap(base_addr, address_map);
   }
   
-  vector<wasmtime_stacksizemap_entry_t> get_stack_size_maps() {
+  vector<wasmtime_ssmap_entry_t> get_stack_size_maps() {
     if (module == NULL) {
       spdlog::error("module is NULL");
     }
     
     // stack_size_mapsを取得
-    wasmtime_stacksizemap_entry_t *data;
+    wasmtime_ssmap_entry_t *data;
     size_t len;
     wasmtime_module_stack_size_maps(module, &data, &len);
     spdlog::info("return wasmtime_module_stack_size_maps");
     
-    vector<wasmtime_stacksizemap_entry_t> stack_size_map(data, data+len);
+    vector<wasmtime_ssmap_entry_t> stack_size_map(data, data+len);
     
     // **const u32をvec<vec<u32>>に変換
     // vector<vector<uint32_t>> stack_size_maps(count);
@@ -273,7 +273,7 @@ void sigtrap_handler(int sig, siginfo_t *info, void *context) {
     spdlog::info("Checkpoint program counter");
 
     // checkpoint stack
-    vector<wasmtime_stacksizemap_entry_t> stack_size_maps = vm->get_stack_size_maps();
+    vector<wasmtime_ssmap_entry_t> stack_size_maps = vm->get_stack_size_maps();
     spdlog::info("Get stack size map");
     vector<int> stack = reconstruct_stack(regs, stack_size_maps, pc);
     spdlog::debug("stack: [{}]", fmt::join(stack, ", "));

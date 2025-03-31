@@ -19,7 +19,7 @@ void check_magic_number(uintptr_t rsp) {
     spdlog::debug("Check magic number\n");
 }
 
-vector<int> reconstruct_stack(vector<uintptr_t> &regs, vector<wasmtime_stacksizemap_entry_t> &stack_size_map, uint32_t pc) {
+vector<int> reconstruct_stack(vector<uintptr_t> &regs, vector<wasmtime_ssmap_entry_t> &stack_size_map, uint32_t pc) {
   uintptr_t rsp = regs[ENC_RSP];
   check_magic_number(rsp);
 
