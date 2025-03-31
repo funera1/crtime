@@ -14,17 +14,19 @@ public:
     AddressMap(uintptr_t base_addr, vector<wasmtime_addrmap_entry_t> addrmap) : base_address(base_addr), addrmap(addrmap){}
 
     uint32_t get_wasm_offset(uintptr_t rip) {
-        uint32_t pc_code_offset = rip - base_address;
+        // sigtrap handlerが呼び出されるときには、int3から1つ進んでいるため,-1する
+        uint32_t pc_code_offset = rip - base_address - 1;
         for (auto addr : addrmap) {
             if (addr.code_offset == pc_code_offset) {
+                spdlog::debug("addr.code_offset: {:d}", addr.code_offset);
+                spdlog::debug("addr.wasm_offset: {:d}", addr.wasm_offset);
               return addr.wasm_offset;
             }
         }
-        spdlog::debug("Not found target wasm offset in address map");
+        spdlog::error("Not found target wasm offset in address map");
         return 0xdeadbeaf;
     }
 };
 vector<int> reconstruct_stack(vector<uintptr_t> &regs, vector<wasmtime_ssmap_entry_t> &stack_size_map, uint32_t pc);
-void print_stack(vector<uintptr_t> regs);
 
 #endif

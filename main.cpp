@@ -26,9 +26,8 @@ mkdir build && cd build && cmake .. && cmake --build . --target wasmtime-hello
 #include <string>
 #include <optional>
 #include <format>
-#include <fmt/ranges.h>
+#include <cassert>
 
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -40,11 +39,21 @@ mkdir build && cd build && cmake .. && cmake --build . --target wasmtime-hello
 #include <ylt/struct_pack.hpp>
 #include <ylt/struct_json/json_writer.h>
 #include <spdlog/spdlog.h>
+#include <fmt/ranges.h>
 
 #include "regs.h"
 #include "stack.h"
 
 using namespace std;
+
+class Option {
+public:
+  bool is_print_addrmap;
+  bool is_print_ssmap;
+
+  Option() : is_print_addrmap(false), is_print_ssmap(false) {}  // デフォルトコンストラクタ
+  Option(bool is_pam, bool is_psm) : is_print_addrmap(is_pam), is_print_ssmap(is_psm) {}
+};
 
 class VMCxt;
 VMCxt *vm = nullptr;
@@ -79,14 +88,16 @@ public:
   wasmtime_module_t *module; 
   wasmtime_context_t *context;
   wasm_trap_t *trap;
+  Option option;
 
-  VMCxt(wasm_config_t *config) {
+  VMCxt(wasm_config_t *config, Option opt) {
     engine = wasm_engine_new_with_config(config);
     store = wasmtime_store_new(engine, NULL, NULL);
     linker = wasmtime_linker_new(engine);
     context = wasmtime_store_context(store);
     module = NULL;
     trap = NULL;
+    option = opt;
   }
 
   wasmtime_instance_t get_instance() {
@@ -113,10 +124,13 @@ public:
 
     vector<wasmtime_addrmap_entry_t> address_map(data, data+len);
     
-    // string s = "(code offs, wasm offs): [";
-    // for (auto ad : address_map) s += format(" ({}, {}) ", ad.code_offset, ad.wasm_offset);
-    // s += "]";
-    // spdlog::debug("{:s}", s);
+    // debug: print address map
+    if (option.is_print_addrmap) {
+      string s = "(code offs, wasm offs): [";
+      for (auto ad : address_map) s += format(" ({}, {}) ", ad.code_offset, ad.wasm_offset);
+      s += "]";
+      spdlog::debug("{:s}", s);
+    }
     
     return AddressMap(base_addr, address_map);
   }
@@ -134,11 +148,13 @@ public:
     
     vector<wasmtime_ssmap_entry_t> stack_size_map(data, data+len);
     
-    // debug
-    // string s = "(wasm offs, stack size): [";
-    // for (auto iter : stack_size_map) s += format(" ({}, {}) ", iter.wasm_offset, iter.stack_size);
-    // s += "]";
-    // spdlog::debug("{:s}", s);
+    // debug: print address map
+    if (option.is_print_ssmap) {
+      string s = "(wasm offs, stack size): [";
+      for (auto iter : stack_size_map) s += format(" ({}, {}) ", iter.wasm_offset, iter.stack_size);
+      s += "]";
+      spdlog::debug("{:s}", s);
+    }
     
     return stack_size_map;
   }
@@ -326,12 +342,14 @@ wasm_byte_vec_t load_wasm_file(string file_name) {
 int main(int argc, char* argv[]) {
   // Init logger
   spdlog::set_level(spdlog::level::trace);
-  spdlog::debug("Hello spdlog");
+  spdlog::info("Hello spdlog");
 
   // Parse options
   cxxopts::Options options("MyProgram", "One line description of MyProgram");
   options.add_options()
     ("f,file", "Please input wasm file (required)", cxxopts::value<std::string>())
+    ("print-addrmap", "Print address map", cxxopts::value<bool>()->default_value("false"))
+    ("print-ssmap", "Print stack size map", cxxopts::value<bool>()->default_value("false"))
     ("h,help", "help output", cxxopts::value<bool>()->default_value("false"))
     ;
   auto result = options.parse(argc, argv);
@@ -345,6 +363,11 @@ int main(int argc, char* argv[]) {
   string file_name = result["file"].as<string>();
   assert(file_name.size() != 0);
 
+  bool is_print_addrmap = result["print-addrmap"].as<bool>();
+  bool is_print_ssmap = result["print-ssmap"].as<bool>();
+  
+  Option option(is_print_addrmap, is_print_ssmap);
+
   // Register sigtrap handler
   register_sigtrap();
   
@@ -355,7 +378,7 @@ int main(int argc, char* argv[]) {
   wasm_config_t* config = wasm_config_new();
   wasmtime_config_strategy_set(config, WASMTIME_STRATEGY_WINCH);
 
-  vm = new VMCxt(config);
+  vm = new VMCxt(config, option);
   assert(vm->engine != NULL);
   assert(vm->store != NULL);
 
