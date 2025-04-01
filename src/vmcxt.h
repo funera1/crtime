@@ -4,7 +4,9 @@
 #include <optional>
 #include <wasmtime.h>
 #include <wasm.h>
+#include <signal.h>
 #include "option.h"
+#include "stack.h"
 
 typedef struct global {
   int kind;
@@ -24,6 +26,11 @@ public:
     bool initialize();
     bool execute();
     
+    // privateでもいい
+    wasmtime_instance_t get_instance();
+    optional<AddressMap> get_address_map();
+    vector<wasmtime_ssmap_entry_t> get_stack_size_maps();
+
     std::optional<std::vector<uint8_t>> get_memory();
     std::vector<int> get_stack();
     std::vector<global_t> get_globals();

@@ -13,9 +13,6 @@ int main(int argc, char* argv[]) {
     Option option = parse_options(argc, argv);
     if (!option.is_valid()) return 0;
 
-    // SIGTRAP ハンドラ登録
-    register_sigtrap();
-
     // init loggger for wasmtime
     wasmtime_config_init_logger();
 
@@ -25,6 +22,10 @@ int main(int argc, char* argv[]) {
         spdlog::error("Failed to initialize VM");
         return -1;
     }
+
+    // SIGTRAP ハンドラ登録
+    register_sigtrap(&vm);
+
 
     // WASM モジュールの実行
     if (!vm.execute()) {

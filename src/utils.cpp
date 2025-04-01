@@ -1,6 +1,8 @@
 #include <wasmtime.h>
 #include <spdlog/spdlog.h>
 #include <string>
+#include <iostream>
+#include <fstream>
 
 void exit_with_error(std::string message, wasmtime_error_t *error,
                             wasm_trap_t *trap) {
@@ -51,4 +53,11 @@ void instantiate_wasi(wasmtime_context_t *context, wasm_trap_t *trap) {
   wasmtime_error_t *error = wasmtime_context_set_wasi(context, wasi_config);
   if (error != NULL)
     exit_with_error("failed to instantiate WASI", error, NULL);
+}
+
+bool write_binary(std::string filepath, uint8_t *data, size_t size){
+    std::ofstream fout(filepath, std::ios::out | std::ios::binary);
+    fout.write((char *)data, size);
+    fout.close();
+    return true;
 }
