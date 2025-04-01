@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20")
 
-add_executable(crtime src/main.cpp src/regs.cpp src/stack.cpp)
+add_executable(crtime src/main.cpp src/regs.cpp src/stack.cpp src/vmcxt.cpp src/utils.cpp src/signal_handler.cpp src/option.cpp)
 
 # wasmtime
 add_subdirectory(third_party/wasmtime/crates/c-api)
