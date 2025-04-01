@@ -30,3 +30,10 @@ target_link_libraries(crtime PUBLIC spdlog::spdlog)
 # fmtlib
 add_subdirectory(third_party/fmt)
 target_link_libraries(crtime PUBLIC fmt::fmt)
+
+# tests
+option(ENABLE_TESTS "Enable unit tests" ON)
+if (ENABLE_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
