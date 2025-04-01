@@ -24,7 +24,7 @@ int main(int argc, char* argv[]) {
     }
 
     // SIGTRAP ハンドラ登録
-    register_sigtrap(&vm);
+    register_sigtrap(&vm, sigtrap_handler, global_vm_setter);
 
     // WASM モジュールの実行
     if (!vm.execute()) {
