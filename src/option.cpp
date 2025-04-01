@@ -16,9 +16,9 @@ Option parse_options(int argc, char* argv[]) {
         std::cout << options.help() << std::endl;
         return Option();
     }
-
+    
     return Option(
-        result["file"].as<std::string>(),
+        load_wasm_from_file(result["file"].as<std::string>()),
         result["print-addrmap"].as<bool>(),
         result["print-ssmap"].as<bool>()
     );

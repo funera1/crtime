@@ -22,7 +22,7 @@ void exit_with_error(std::string message, wasmtime_error_t *error,
   exit(1);
 }
 
-wasm_byte_vec_t load_wasm_file(std::string file_name) {
+wasm_byte_vec_t load_wasm_from_file(std::string file_name) {
   wasm_byte_vec_t wasm;
 
   FILE *file = fopen(file_name.c_str(), "rb");
@@ -35,10 +35,28 @@ wasm_byte_vec_t load_wasm_file(std::string file_name) {
   wasm_byte_vec_new_uninitialized(&wasm, file_size);
   fseek(file, 0L, SEEK_SET);
   if (fread(wasm.data, file_size, 1, file) != 1) {
-    printf("> Error loading module!\n");
-    exit(1);
+      spdlog::error("failed loading wasm code");
+      exit(1);
   }
   fclose(file);
+  return wasm;
+}
+
+wasm_byte_vec_t load_wasm_from_wasm(std::vector<uint8_t> code) {
+  wasm_byte_vec_t wasm;
+  wasm_byte_vec_new_uninitialized(&wasm, code.size());
+  memcpy(wasm.data, code.data(), code.size());
+  return wasm;
+}
+
+wasm_byte_vec_t load_wasm_from_wat(std::string wat) {
+  wasmtime_error_t *error;
+  wasm_byte_vec_t wasm;
+  error = wasmtime_wat2wasm(wat.data(), wat.size(), &wasm);
+  if (error != NULL) {
+    exit_with_error("failed to wat2wasm", error, NULL);
+  }
+  
   return wasm;
 }
 
@@ -60,4 +78,8 @@ bool write_binary(std::string filepath, uint8_t *data, size_t size){
     fout.write((char *)data, size);
     fout.close();
     return true;
+}
+
+std::vector<uint8_t> wat2wasm(std::string wat) {
+
 }

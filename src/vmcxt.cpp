@@ -24,23 +24,20 @@ bool VMCxt::initialize() {
     store = wasmtime_store_new(engine, NULL, NULL);
     linker = wasmtime_linker_new(engine);
     context = wasmtime_store_context(store);
-    if (!engine || !store || !linker) return false;
+    if (!engine || !store || !linker || !context) return false;
 
+    // linker setting
     wasmtime_linker_allow_unknown_exports(linker, true);
-    return true;
-}
 
-bool VMCxt::execute() {
     // Create a linker with WASI functions defined
     wasmtime_error_t *error = wasmtime_linker_define_wasi(linker);
     if (error != NULL) {
         exit_with_error("failed to link wasi", error, NULL);
     }
-
-    // Load our input file to parse it next
-    wasm_byte_vec_t wasm = load_wasm_file(option.file_name);
-
+    
+    // new module
     // Compile our modules
+    wasm_byte_vec_t wasm = option.wasm;
     error = wasmtime_module_new(engine, (uint8_t *)wasm.data, wasm.size, &module);
     if (!module) {
         exit_with_error("failed to compile module", error, NULL);
@@ -55,6 +52,12 @@ bool VMCxt::execute() {
     if (error != NULL) {
         exit_with_error("failed to instantiate module", error, NULL);
     }
+
+    return true;
+}
+
+bool VMCxt::execute() {
+    wasmtime_error_t *error;
 
     // Run it.
     wasmtime_func_t func;

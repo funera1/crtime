@@ -26,7 +26,6 @@ int main(int argc, char* argv[]) {
     // SIGTRAP ハンドラ登録
     register_sigtrap(&vm);
 
-
     // WASM モジュールの実行
     if (!vm.execute()) {
         spdlog::error("Failed to execute WASM");
