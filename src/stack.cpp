@@ -22,11 +22,11 @@ void check_magic_number(uintptr_t rbp) {
 }
 
 vector<int> reconstruct_stack(vector<uintptr_t> &regs, vector<wasmtime_ssmap_entry_t> &stack_size_map, uint32_t pc) {
-  uintptr_t rsp = regs[ENC_RSP];
   uintptr_t rbp = regs[ENC_RBP];
   check_magic_number(rbp);
 
   // stack_sizeを取得
+  spdlog::debug("stack_size_map size: {:d}", stack_size_map.size());
   uint32_t stack_size = -1;
   for (int i = 0; i < stack_size_map.size(); i++) {
     if (stack_size_map[i].wasm_offset == pc) {

@@ -7,11 +7,9 @@
     ;; ローカル変数に値を設定
     i32.const 5
     local.set $a       ;; $a = 5
-    nop
 
     i32.const 10
     local.set $b       ;; $b = 10
-    nop
 
     ;; ローカル変数を加算して結果をスタックに積む
     local.get $a       ;; スタックに$aの値（5）を積む

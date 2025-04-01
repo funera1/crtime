@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "../src/option.h"
+#include "option.h"
 #include "vmcxt.h"
 #include "signal_handler.h"
 #include "regs.h"
@@ -31,7 +31,7 @@ void test_handler(int sig, siginfo_t *info, void *context) {
 }
 
 
-int exec_local() {
+void exec_local() {
     std::string wat = R"(
 (module
   (func $start (export "_start")
@@ -57,6 +57,7 @@ int exec_local() {
     VMCxt vm(option);
     if (!vm.initialize()) {
         // error
+        spdlog::error("failed vmcxt init");
     }
 
     register_sigtrap(&vm, test_handler, set_global_test_vm);
@@ -67,7 +68,7 @@ int exec_local() {
 }
 
 TEST(TestCase, exec_local) {
-    vector<int> expect(15);
+    vector<int> expect{15};
     exec_local();
     EXPECT_EQ(expect, test_stack);
 }
