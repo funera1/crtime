@@ -7,7 +7,8 @@ public:
     bool is_print_addrmap;
     bool is_print_ssmap;
 
-    Option() : is_print_addrmap(false), is_print_ssmap(false) {}
+    Option()
+        : file_name(""), is_print_addrmap(false), is_print_ssmap(false) {}
     Option(std::string file, bool addrmap, bool ssmap) 
         : file_name(file), is_print_addrmap(addrmap), is_print_ssmap(ssmap) {}
 

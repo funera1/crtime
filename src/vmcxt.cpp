@@ -27,38 +27,41 @@ bool VMCxt::initialize() {
 }
 
 bool VMCxt::execute() {
-    return true;
     // Create a linker with WASI functions defined
-    // wasmtime_error_t *error = wasmtime_linker_define_wasi(linker);
-    // if (error != NULL) {
-    //     exit_with_error("failed to link wasi", error, NULL);
-    // }
+    wasmtime_error_t *error = wasmtime_linker_define_wasi(linker);
+    if (error != NULL) {
+        exit_with_error("failed to link wasi", error, NULL);
+    }
 
-    // // Load our input file to parse it next
-    // wasm_byte_vec_t wasm = load_wasm_file(file_name);
+    // Load our input file to parse it next
+    wasm_byte_vec_t wasm = load_wasm_file(option.file_name);
 
-    // // Compile our modules
-    // error = wasmtime_module_new(vm->engine, (uint8_t *)wasm.data, wasm.size, &vm->module);
-    // if (!vm->module)
-    //     exit_with_error("failed to compile module", error, NULL);
-    // wasm_byte_vec_delete(&wasm);
+    // Compile our modules
+    error = wasmtime_module_new(engine, (uint8_t *)wasm.data, wasm.size, &module);
+    if (!module) {
+        exit_with_error("failed to compile module", error, NULL);
+    }
+    wasm_byte_vec_delete(&wasm);
 
-    // // Instantiate wasi
-    // instantiate_wasi(vm->context, vm->trap);
+    // Instantiate wasi
+    instantiate_wasi(context, trap);
 
-    // // Instantiate the module
-    // error = wasmtime_linker_module(vm->linker, vm->context, "", 0, vm->module);
-    // if (error != NULL)
-    //     exit_with_error("failed to instantiate module", error, NULL);
+    // Instantiate the module
+    error = wasmtime_linker_module(linker, context, "", 0, module);
+    if (error != NULL) {
+        exit_with_error("failed to instantiate module", error, NULL);
+    }
 
-    // // Run it.
-    // wasmtime_func_t func;
-    // error = wasmtime_linker_get_default(vm->linker, vm->context, "", 0, &func);
-    // if (error != NULL)
-    //     exit_with_error("failed to locate default export for module", error, NULL);
+    // Run it.
+    wasmtime_func_t func;
+    error = wasmtime_linker_get_default(linker, context, "", 0, &func);
+    if (error != NULL) {
+        exit_with_error("failed to locate default export for module", error, NULL);
+    }
 
-    // error = wasmtime_func_call(vm->context, &func, NULL, 0, NULL, 0, &vm->trap);
-    // if (error != NULL || vm->trap != NULL)
-    //     exit_with_error("error calling default export", error, vm->trap);
-    // return true;
+    error = wasmtime_func_call(context, &func, NULL, 0, NULL, 0, &trap);
+    if (error != NULL || trap != NULL) {
+        exit_with_error("error calling default export", error, trap);
+    }
+    return true;
 }
