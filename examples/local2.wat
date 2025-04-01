@@ -1,28 +1,21 @@
 (module
   (func $start (export "_start")
     ;; ローカル変数を宣言
-    (local $1 i32)
-    (local $2 i32)
-    (local $3 i32)
-    (local $4 i32)
-    (local $5 i32)
-    (local $6 i32)
-    (local $7 i32)
-    (local $8 i32)
-    (local $9 i32)
-    (local $10 i32)
-    (local $11 i32)
-    (local $12 i32)
-    (local $13 i32)
-    (local $14 i32)
-    (local $15 i32)
-    (local $16 i32)
-    (local $17 i32)
+    (local $a i32)
+    (local $b i32)
 
     ;; ローカル変数に値を設定
-    i32.const 1
-    local.tee $1
+    i32.const 5
+    local.set $a       ;; $a = 5
+
+    i32.const 10
+    local.set $b       ;; $b = 10
+
+    ;; ローカル変数を加算して結果をスタックに積む
+    local.get $a       ;; スタックに$aの値（5）を積む
+    local.get $b       ;; スタックに$bの値（10）を積む
+    i32.add            ;; 5 + 10 = 15
     nop
-    drop
+    drop               ;; スタックから結果を削除（計算結果を捨てる）
   )
 )

@@ -26,7 +26,6 @@ vector<int> reconstruct_stack(vector<uintptr_t> &regs, vector<wasmtime_ssmap_ent
   check_magic_number(rbp);
 
   // stack_sizeを取得
-  spdlog::debug("stack_size_map size: {:d}", stack_size_map.size());
   uint32_t stack_size = -1;
   for (int i = 0; i < stack_size_map.size(); i++) {
     if (stack_size_map[i].wasm_offset == pc) {

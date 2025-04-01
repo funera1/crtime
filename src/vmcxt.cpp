@@ -66,6 +66,7 @@ bool VMCxt::execute() {
         exit_with_error("failed to locate default export for module", error, NULL);
     }
 
+    // TODO: 自由に引数/返り値を扱えるようにする(現在は両方0しかだめ)
     error = wasmtime_func_call(context, &func, NULL, 0, NULL, 0, &trap);
     if (error != NULL || trap != NULL) {
         exit_with_error("error calling default export", error, trap);
