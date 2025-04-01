@@ -79,7 +79,3 @@ bool write_binary(std::string filepath, uint8_t *data, size_t size){
     fout.close();
     return true;
 }
-
-std::vector<uint8_t> wat2wasm(std::string wat) {
-
-}

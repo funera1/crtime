@@ -1,12 +1,12 @@
 #include "signal_handler.h"
-#include "regs.h"
-#include "stack.h"
-#include "utils.h"
-#include "vmcxt.h"
 #include <spdlog/spdlog.h>
 #include <ucontext.h>
 #include <fmt/ranges.h>
 #include <ylt/struct_pack.hpp>
+
+#include "regs.h"
+#include "stack.h"
+#include "utils.h"
 
 static char altstack[8192];
 static VMCxt *global_vm;
@@ -36,7 +36,6 @@ void global_vm_setter(VMCxt *vm) {
 }
 
 void sigtrap_handler(int sig, siginfo_t *info, void *context) {
-    /* printf("Caught SIGTRAP (signal number: %d)\n", sig); */
     spdlog::info("Caught SIGTRAP");
 
     // 最初にレジスタ全部退避させておく
