@@ -9,9 +9,9 @@ public:
     std::string state_path;
     
     RestoreOption()
-        : is_restore(false), state_path("") {}
+        : is_restore(false), state_path("./") {}
     RestoreOption(bool is_restore)
-        : is_restore(is_restore), state_path("") {}
+        : is_restore(is_restore), state_path("./") {}
     RestoreOption(bool is_restore, std::string path)
         : is_restore(is_restore), state_path(path) {}
 };

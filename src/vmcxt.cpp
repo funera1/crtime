@@ -16,8 +16,40 @@ VMCxt::~VMCxt() {
     if (engine) wasm_engine_delete(engine);
 }
 
+uint32_t parse_pc(std::string dir) {
+  const std::string path = dir + "wasm_pc.img";
+  std::ifstream file(path, std::ios::binary);
+  if (!file) {
+    spdlog::error("failed to open {:s}", path);
+    return -1;
+  }
+
+  // read
+  uint32_t value;
+  file.read(reinterpret_cast<char*>(&value), sizeof(value));
+  if (!file) {
+    spdlog::error("failed to read {:s}", path);
+    return -1;
+  }
+  
+  return value;
+}
+
 void set_restore_info(wasm_config_t* config, RestoreOption opt) {
-    wasmtime_config_set_restore_info(config, opt.is_restore);
+    // parse stack file
+    uint32_t pc = parse_pc(opt.state_path);
+    if (pc == -1) {
+      spdlog::error("failed to restore pc");
+      return;
+    }
+    spdlog::debug("restored wasm_pc: {:d}", pc);
+    
+    wasmtime_restore_info_t restore_info {
+      is_restore: opt.is_restore,
+      wasm_pc: pc,
+    };
+    
+    wasmtime_config_set_restore_info(config, &restore_info);
 }
 
 bool VMCxt::initialize() {
