@@ -16,9 +16,16 @@ VMCxt::~VMCxt() {
     if (engine) wasm_engine_delete(engine);
 }
 
+void set_restore_info(wasm_config_t* config) {
+    wasmtime_config_set_restore_info(config, true);
+}
+
 bool VMCxt::initialize() {
     wasm_config_t* config = wasm_config_new();
     wasmtime_config_strategy_set(config, WASMTIME_STRATEGY_WINCH);
+    
+    // restore
+    set_restore_info(config);
 
     engine = wasm_engine_new_with_config(config);
     store = wasmtime_store_new(engine, NULL, NULL);
