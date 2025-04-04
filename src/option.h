@@ -3,12 +3,27 @@
 #include <wasm.h>
 #include "utils.h"
 
+class RestoreOption {
+public:
+    bool is_restore;
+    std::string state_path;
+    
+    RestoreOption()
+        : is_restore(false), state_path("") {}
+    RestoreOption(bool is_restore)
+        : is_restore(is_restore), state_path("") {}
+    RestoreOption(bool is_restore, std::string path)
+        : is_restore(is_restore), state_path(path) {}
+};
+
 class Option {
 public:
     wasm_byte_vec_t wasm;
     bool is_print_addrmap;
     bool is_print_ssmap;
+    RestoreOption restore_opt;
 
+    // TODO: constructorが増えまくるので、値の入れ方を考える
     Option()
         : wasm(), is_print_addrmap(false), is_print_ssmap(false) {}
     Option(wasm_byte_vec_t wasm, bool addrmap, bool ssmap) 
