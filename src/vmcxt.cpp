@@ -36,6 +36,10 @@ uint32_t parse_pc(std::string dir) {
 }
 
 void set_restore_info(wasm_config_t* config, RestoreOption opt) {
+    if (!opt.is_restore) {
+      return;
+    }
+
     // parse stack file
     uint32_t pc = parse_pc(opt.state_path);
     if (pc == -1) {
