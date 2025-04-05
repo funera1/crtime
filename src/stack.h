@@ -4,6 +4,7 @@
 #include <vector>
 #include <spdlog/spdlog.h>
 #include <wasmtime.h>
+#include <ylt/struct_pack.hpp>
 
 using namespace std;
 
@@ -34,6 +35,18 @@ struct stack_entry_t {
   
   stack_entry_t() = default;
   stack_entry_t(uint8_t id, uint32_t v) : reg_id(id), value(v) {};
+
+  YLT_REFL(stack_entry_t, reg_id, value);
+};
+
+struct Stack {
+    vector<stack_entry_t> stack;
+    
+    Stack() = default;
+    Stack(vector<stack_entry_t> v): stack(v) {};
+
+    // YLT_REFLマクロを使ってメンバを登録
+    YLT_REFL(Stack, stack)
 };
 
 vector<stack_entry_t> reconstruct_stack(vector<uintptr_t> &regs, std::vector<wasmtime_ssmap_entry_t> &stack_size_map, uint32_t pc);

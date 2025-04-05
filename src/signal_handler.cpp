@@ -64,10 +64,12 @@ void sigtrap_handler(int sig, siginfo_t *info, void *context) {
     spdlog::info("Get stack size map");
     vector<stack_entry_t> stack = reconstruct_stack(regs, stack_size_maps, pc);
     spdlog::debug("stack: [{}]", fmt::join(get_stack_vals(stack), ", "));
-    // spdlog::debug("stack: [{}]", fmt::join(stack, ", "));
     spdlog::info("Reconstruct stack");
-
-    if (!write_binary("wasm_stack.img", reinterpret_cast<uint8_t*>(&stack), sizeof(int) * stack.size())) {
+    
+    vector<char> buffer;
+    Stack s(stack);
+    buffer = struct_pack::serialize(s);
+    if (!write_binary("wasm_stack.img", (uint8_t *)buffer.data(), buffer.size())) {
       spdlog::error("failed to checkpoint stack");
     }
     spdlog::info("Checkpoint stack");
@@ -82,7 +84,7 @@ void sigtrap_handler(int sig, siginfo_t *info, void *context) {
     // checkpoint globals
     std::vector<global_t> global = global_vm->get_globals();
     struct globals g{global};
-    vector<char> buffer = struct_pack::serialize(g);
+    buffer = struct_pack::serialize(g);
     if (!write_binary("wasm_global.img", (uint8_t *)buffer.data(), buffer.size())) {
       spdlog::error("failed to checkpoint globals");
     }
