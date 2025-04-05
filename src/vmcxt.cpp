@@ -1,11 +1,13 @@
 #include "vmcxt.h"
 #include "utils.h"
 #include "stack.h"
+#include "restore.h"
 #include <spdlog/spdlog.h>
 #include <fstream>
 #include <cassert>
 #include <format>
 #include <iostream>
+#include <fmt/ranges.h>
 
 using namespace std;
 
@@ -17,37 +19,22 @@ VMCxt::~VMCxt() {
     if (engine) wasm_engine_delete(engine);
 }
 
-uint32_t parse_pc(std::string dir) {
-  const std::string path = dir + "wasm_pc.img";
-  std::ifstream file(path, std::ios::binary);
-  if (!file) {
-    spdlog::error("failed to open {:s}", path);
-    return -1;
-  }
-
-  // read
-  uint32_t value;
-  file.read(reinterpret_cast<char*>(&value), sizeof(value));
-  if (!file) {
-    spdlog::error("failed to read {:s}", path);
-    return -1;
-  }
-  
-  return value;
-}
-
 void set_restore_info(wasm_config_t* config, RestoreOption opt) {
     if (!opt.is_restore) {
       return;
     }
 
-    // parse stack file
+    // parse program counterfile
     uint32_t pc = parse_pc(opt.state_path);
     if (pc == -1) {
       spdlog::error("failed to restore pc");
       return;
     }
     spdlog::debug("restored wasm_pc: {:d}", pc);
+    
+    // parse stack file
+    Stack stack = parse_stack(opt.state_path);
+    spdlog::debug("restored stack: [{}]", fmt::join(get_stack_vals(stack.stack), ", "));
     
     wasmtime_restore_info_t restore_info {
       is_restore: opt.is_restore,
