@@ -3,6 +3,7 @@
 #include <string>
 #include <iostream>
 #include <fstream>
+#include <stdlib.h>
 
 void exit_with_error(std::string message, wasmtime_error_t *error,
                             wasm_trap_t *trap) {
@@ -78,4 +79,35 @@ bool write_binary(std::string filepath, uint8_t *data, size_t size){
     fout.write((char *)data, size);
     fout.close();
     return true;
+}
+
+wasmtime_val_t* wasmtime_val_new(const wasm_valtype_vec_t *types) {
+    size_t count = types->size;
+    wasmtime_val_t* vals = (wasmtime_val_t *)calloc(count, sizeof(wasmtime_val_t));
+
+    for (size_t i = 0; i < count; ++i) {
+        wasm_valtype_t* valtype = types->data[i];
+        wasm_valkind_t kind = wasm_valtype_kind(valtype);
+
+        vals[i].kind = kind;
+
+        // 初期値の設定（用途に応じて変えてOK）
+        switch (kind) {
+            case WASM_I32: vals[i].of.i32 = 0; break;
+            case WASM_I64: vals[i].of.i64 = 0; break;
+            case WASM_F32: vals[i].of.f32 = 0.0f; break;
+            case WASM_F64: vals[i].of.f64 = 0.0; break;
+            case WASM_EXTERNREF:
+            case WASM_FUNCREF:
+                spdlog::error("FUNCREF is unsupported");
+                // vals[i].of.ref = NULL;
+                break;
+            default:
+                spdlog::error("unsupported type");
+                // 未対応の型
+                break;
+        }
+    }
+
+    return vals;
 }

@@ -5,7 +5,7 @@
 #include "regs.h"
 #include "stack.h"
 
-vector<int> test_stack;
+vector<stack_entry_t> test_stack;
 static VMCxt *global_test_vm;
 
 void set_global_test_vm(VMCxt *vm) {
@@ -68,9 +68,9 @@ TEST(TestCase, exec_local) {
   )
 )
 )";
-    vector<int> expect{15};
+    vector<uint32_t> expect{15};
     exec_wat(wat);
-    EXPECT_EQ(expect, test_stack);
+    EXPECT_EQ(expect, get_stack_vals(test_stack));
 }
 
 TEST(TestCase, exec_memory) {
@@ -94,9 +94,9 @@ TEST(TestCase, exec_memory) {
 )
 
 )";
-    vector<int> expect{42};
+    vector<uint32_t> expect{42};
     exec_wat(wat);
-    EXPECT_EQ(expect, test_stack);
+    EXPECT_EQ(expect, get_stack_vals(test_stack));
 }
 
 TEST(TestCase, exec_add_1) {
@@ -113,9 +113,9 @@ TEST(TestCase, exec_add_1) {
   )
 )
 )";
-    vector<int> expect{6};
+    vector<uint32_t> expect{6};
     exec_wat(wat);
-    EXPECT_EQ(expect, test_stack);
+    EXPECT_EQ(expect, get_stack_vals(test_stack));
 }
 
 TEST(TestCase, exec_add_2) {
@@ -132,9 +132,9 @@ TEST(TestCase, exec_add_2) {
   )
 )
 )";
-    vector<int> expect{5};
+    vector<uint32_t> expect{5};
     exec_wat(wat);
-    EXPECT_EQ(expect, test_stack);
+    EXPECT_EQ(expect, get_stack_vals(test_stack));
 }
 
 TEST(TestCase, exec_drop) {
@@ -153,9 +153,9 @@ TEST(TestCase, exec_drop) {
   )
 )
 )";
-    vector<int> expect{7};
+    vector<uint32_t> expect{7};
     exec_wat(wat);
-    EXPECT_EQ(expect, test_stack);
+    EXPECT_EQ(expect, get_stack_vals(test_stack));
 }
 
 TEST(TestCase, exec_br) {
@@ -176,9 +176,9 @@ TEST(TestCase, exec_br) {
   )
 )
 )";
-    vector<int> expect{7};
+    vector<uint32_t> expect{7};
     exec_wat(wat);
-    EXPECT_EQ(expect, test_stack);
+    EXPECT_EQ(expect, get_stack_vals(test_stack));
 }
 
 TEST(TestCase, exec_loop) {
@@ -221,9 +221,9 @@ TEST(TestCase, exec_loop) {
   )
 )
 )";
-    vector<int> expect{45};
+    vector<uint32_t> expect{45};
     exec_wat(wat);
-    EXPECT_EQ(expect, test_stack);
+    EXPECT_EQ(expect, get_stack_vals(test_stack));
 }
 
 // 返り値を返すblockの実行
@@ -267,7 +267,7 @@ TEST(TestCase, exec_return_val_block) {
   )
 )
 )";
-    vector<int> expect{45};
+    vector<uint32_t> expect{45};
     exec_wat(wat);
-    EXPECT_EQ(expect, test_stack);
+    EXPECT_EQ(expect, get_stack_vals(test_stack));
 }

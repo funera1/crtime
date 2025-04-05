@@ -21,7 +21,7 @@ void check_magic_number(uintptr_t rbp) {
     spdlog::info("Check magic number\n");
 }
 
-vector<int> reconstruct_stack(vector<uintptr_t> &regs, vector<wasmtime_ssmap_entry_t> &stack_size_map, uint32_t pc) {
+vector<stack_entry_t> reconstruct_stack(vector<uintptr_t> &regs, vector<wasmtime_ssmap_entry_t> &stack_size_map, uint32_t pc) {
   uintptr_t rbp = regs[ENC_RBP];
   check_magic_number(rbp);
 
@@ -37,7 +37,7 @@ vector<int> reconstruct_stack(vector<uintptr_t> &regs, vector<wasmtime_ssmap_ent
   if (stack_size == -1) {
     spdlog::error("Failed to get stack size");
     // TODO: 返り値を見直す
-    return vector<int>(0);
+    return vector<stack_entry_t>(0);
   }
   spdlog::debug("stack size: {:d}", stack_size);
 
@@ -50,17 +50,25 @@ vector<int> reconstruct_stack(vector<uintptr_t> &regs, vector<wasmtime_ssmap_ent
   }
 
   // metadataからスタックの値を取得
-  vector<int> stack(stack_size);
+  vector<stack_entry_t> stack(stack_size);
   for (int i = 0; i < v.size(); i++) {
     // vにはreg.hw_encかmemoryのoffsetが入っている
     // 16未満ならreg, 16以上ならmemory
     if (v[i] < 16) {
-      stack[i] = regs[v[i]];
+      stack[i] = stack_entry_t(v[i], regs[v[i]]);
     }
     else {
         // TODO
+        spdlog::error("Unimplemented");
     }
   }
   
   return stack;
+}
+
+vector<uint32_t> get_stack_vals(vector<stack_entry_t> stack) {
+    vector<uint32_t> stack_vals;
+    std::transform(stack.begin(), stack.end(), std::back_inserter(stack_vals),
+                   [](const stack_entry_t& item) { return item.value; });
+    return stack_vals;
 }

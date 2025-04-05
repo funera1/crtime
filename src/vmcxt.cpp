@@ -5,6 +5,7 @@
 #include <fstream>
 #include <cassert>
 #include <format>
+#include <iostream>
 
 using namespace std;
 
@@ -108,12 +109,34 @@ bool VMCxt::execute() {
     if (error != NULL) {
         exit_with_error("failed to locate default export for module", error, NULL);
     }
+    
+    // 関数の型を取得
+    wasm_functype_t* ftype = wasmtime_func_type(context, &func);
+    const wasm_valtype_vec_t* params = wasm_functype_params(ftype);
+    const wasm_valtype_vec_t* results = wasm_functype_results(ftype);
 
     // TODO: 自由に引数/返り値を扱えるようにする(現在は両方0しかだめ)
-    error = wasmtime_func_call(context, &func, NULL, 0, NULL, 0, &trap);
+    wasmtime_val_t* params_vec = wasmtime_val_new(params);
+    wasmtime_val_t* results_vec = wasmtime_val_new(results);
+    error = wasmtime_func_call(context, &func, params_vec, params->size, results_vec, results->size, &trap);
     if (error != NULL || trap != NULL) {
         exit_with_error("error calling default export", error, trap);
     }
+    
+    // 返り値がある場合
+    if (results->size > 0) {
+      for (int i = 0; i < results->size; i++) {
+        wasmtime_val_t val = results_vec[i];
+        switch (val.kind) {
+          case WASM_I32: cout << val.of.i32 << endl; break;
+          case WASM_F32: cout << val.of.f32 << endl; break;
+          case WASM_I64: cout << val.of.i64 << endl; break;
+          case WASM_F64: cout << val.of.f64 << endl; break;
+          default: spdlog::error("unsupported type"); break;
+        }
+      }
+    }
+    
     return true;
 }
 

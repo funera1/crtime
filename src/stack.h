@@ -27,6 +27,16 @@ public:
         return 0xdeadbeaf;
     }
 };
-vector<int> reconstruct_stack(vector<uintptr_t> &regs, std::vector<wasmtime_ssmap_entry_t> &stack_size_map, uint32_t pc);
+
+struct stack_entry_t {
+  uint8_t reg_id;
+  uint32_t value;
+  
+  stack_entry_t() = default;
+  stack_entry_t(uint8_t id, uint32_t v) : reg_id(id), value(v) {};
+};
+
+vector<stack_entry_t> reconstruct_stack(vector<uintptr_t> &regs, std::vector<wasmtime_ssmap_entry_t> &stack_size_map, uint32_t pc);
+vector<uint32_t> get_stack_vals(vector<stack_entry_t> stack);
 
 #endif
