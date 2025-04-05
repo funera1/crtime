@@ -20,6 +20,34 @@
         local.get $sum
         local.get $i
         i32.add
+        nop
+        local.set $sum
+
+        local.get $i
+        i32.const 1
+        i32.add
+        local.set $i
+
+        br $loop
+      )
+      i32.const 0  ;; 到達しないがブロックの構文上必要
+    )
+    nop
+
+    (block $exit (param i32) (result i32)
+      (loop $loop (param i32)
+        local.get $i
+        i32.const 10
+        i32.ge_s
+        if
+          local.get $sum  ;; ブロックの返り値として sum を積む
+          br $exit
+        end
+
+        local.get $sum
+        local.get $i
+        i32.add
+        nop
         local.set $sum
 
         local.get $i
