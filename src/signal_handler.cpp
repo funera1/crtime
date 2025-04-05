@@ -62,13 +62,12 @@ void sigtrap_handler(int sig, siginfo_t *info, void *context) {
     // checkpoint stack
     vector<wasmtime_ssmap_entry_t> stack_size_maps = global_vm->get_stack_size_maps();
     spdlog::info("Get stack size map");
-    vector<stack_entry_t> stack = reconstruct_stack(regs, stack_size_maps, pc);
-    spdlog::debug("stack: [{}]", fmt::join(get_stack_vals(stack), ", "));
+    Stack stack = reconstruct_stack(regs, stack_size_maps, pc);
+    spdlog::debug("stack: [{}]", fmt::join(stack.values, ", "));
     spdlog::info("Reconstruct stack");
     
     vector<char> buffer;
-    Stack s(stack);
-    buffer = struct_pack::serialize(s);
+    buffer = struct_pack::serialize(stack);
     if (!write_binary("wasm_stack.img", (uint8_t *)buffer.data(), buffer.size())) {
       spdlog::error("failed to checkpoint stack");
     }

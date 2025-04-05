@@ -5,7 +5,7 @@
 #include "regs.h"
 #include "stack.h"
 
-vector<stack_entry_t> test_stack;
+Stack test_stack;
 static VMCxt *global_test_vm;
 
 void set_global_test_vm(VMCxt *vm) {
