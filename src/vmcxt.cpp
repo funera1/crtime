@@ -94,6 +94,10 @@ bool VMCxt::initialize() {
     return true;
 }
 
+bool VMCxt::explore() {
+  wasmtime_explore(config);
+}
+
 bool VMCxt::execute() {
     wasmtime_error_t *error;
 

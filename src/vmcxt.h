@@ -24,6 +24,7 @@ public:
     ~VMCxt();
     
     bool initialize();
+    bool explore();
     bool execute();
     
     // privateでもいい

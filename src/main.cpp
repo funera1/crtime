@@ -27,7 +27,12 @@ int main(int argc, char* argv[]) {
     register_sigtrap(&vm, sigtrap_handler, global_vm_setter);
 
     // WASM モジュールの実行
-    if (!vm.execute()) {
+    // if (!vm.execute()) {
+    //     spdlog::error("Failed to execute WASM");
+    //     return -1;
+    // }
+
+    if (!vm.explore()) {
         spdlog::error("Failed to execute WASM");
         return -1;
     }
