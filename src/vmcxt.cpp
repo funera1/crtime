@@ -19,40 +19,8 @@ VMCxt::~VMCxt() {
     if (engine) wasm_engine_delete(engine);
 }
 
-void set_restore_info(wasm_config_t* config, RestoreOption opt) {
-    if (!opt.is_restore) {
-      return;
-    }
-
-    // parse program counterfile
-    uint32_t pc = parse_pc(opt.state_path);
-    if (pc == -1) {
-      spdlog::error("failed to restore pc");
-      return;
-    }
-    spdlog::debug("restored wasm_pc: {:d}", pc);
-    
-    // parse stack file
-    Stack stack = parse_stack(opt.state_path);
-    spdlog::debug("restored stack: [{}]", fmt::join(stack.values, ", "));
-    
-    wasmtime_stack_t wasm_stack = wasmtime_stack_t {
-      len: stack.values.size(),
-      values: stack.values.data(),
-      metadata: stack.metadata.data(),
-    };
-    
-    wasmtime_restore_info_t restore_info {
-      is_restore: opt.is_restore,
-      wasm_pc: pc,
-      wasm_stack: wasm_stack,
-    };
-    
-    wasmtime_config_set_restore_info(config, &restore_info);
-}
-
 bool VMCxt::initialize() {
-    wasm_config_t* config = wasm_config_new();
+    config = wasm_config_new();
     wasmtime_config_strategy_set(config, WASMTIME_STRATEGY_WINCH);
     
     // restore
@@ -95,7 +63,8 @@ bool VMCxt::initialize() {
 }
 
 bool VMCxt::explore() {
-  wasmtime_explore(config);
+  wasmtime_explore(config, option.path.c_str());
+  return true;
 }
 
 bool VMCxt::execute() {

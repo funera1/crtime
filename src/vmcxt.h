@@ -38,6 +38,7 @@ public:
     
 private:
     wasm_engine_t *engine;
+    wasm_config_t* config;
     wasmtime_store_t *store;
     wasmtime_linker_t *linker;
     wasmtime_module_t *module; 

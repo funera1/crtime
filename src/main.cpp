@@ -2,6 +2,7 @@
 #include "vmcxt.h"
 #include "signal_handler.h"
 #include "utils.h"
+#include "restore.h"
 #include <spdlog/spdlog.h>
 #include <cxxopts.hpp>
 
@@ -16,26 +17,33 @@ int main(int argc, char* argv[]) {
     // init loggger for wasmtime
     wasmtime_config_init_logger();
 
-    // WASM 実行環境の初期化
-    VMCxt vm(option);
-    if (!vm.initialize()) {
-        spdlog::error("Failed to initialize VM");
-        return -1;
+    if (option.is_explore) {
+        wasm_config_t *config = wasm_config_new();
+        wasmtime_config_strategy_set(config, WASMTIME_STRATEGY_WINCH);
+        
+        // restore
+        set_restore_info(config, option.restore_opt);
+
+        wasmtime_explore(config, option.path.c_str());
+        return 0;
+    } else {
+        // WASM 実行環境の初期化
+        VMCxt vm(option);
+        if (!vm.initialize()) {
+            spdlog::error("Failed to initialize VM");
+            return -1;
+        }
+
+        // SIGTRAP ハンドラ登録
+        register_sigtrap(&vm, sigtrap_handler, global_vm_setter);
+
+        // WASM モジュールの実行
+        if (!vm.execute()) {
+            spdlog::error("Failed to execute WASM");
+            return -1;
+        }
+
+        return 0;
     }
 
-    // SIGTRAP ハンドラ登録
-    register_sigtrap(&vm, sigtrap_handler, global_vm_setter);
-
-    // WASM モジュールの実行
-    // if (!vm.execute()) {
-    //     spdlog::error("Failed to execute WASM");
-    //     return -1;
-    // }
-
-    if (!vm.explore()) {
-        spdlog::error("Failed to execute WASM");
-        return -1;
-    }
-
-    return 0;
 }

@@ -9,6 +9,7 @@ Option parse_options(int argc, char* argv[]) {
         ("print-addrmap", "Print address map", cxxopts::value<bool>()->default_value("false"))
         ("print-ssmap", "Print stack size map", cxxopts::value<bool>()->default_value("false"))
         ("r,restore", "Restore mode", cxxopts::value<bool>()->default_value("false"))
+        ("e,explore", "Explore mode", cxxopts::value<bool>()->default_value("false"))
         ("h,help", "Show help");
 
     auto result = options.parse(argc, argv);
@@ -18,8 +19,10 @@ Option parse_options(int argc, char* argv[]) {
         return Option();
     }
     
+    std::string path = result["file"].as<std::string>();
+    
     Option opt = Option(
-        load_wasm_from_file(result["file"].as<std::string>()),
+        load_wasm_from_file(path),
         result["print-addrmap"].as<bool>(),
         result["print-ssmap"].as<bool>()
     );
@@ -27,6 +30,12 @@ Option parse_options(int argc, char* argv[]) {
     if (result["restore"].as<bool>()) {
         opt.restore_opt = RestoreOption(true);
     }
+
+    if (result["explore"].as<bool>()) {
+        opt.is_explore = true;
+    }
+    
+    opt.path = path;
     
     return opt;
 }
