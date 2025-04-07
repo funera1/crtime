@@ -13,7 +13,7 @@ public:
     RestoreOption(bool is_restore)
         : is_restore(is_restore), state_path("./") {}
     RestoreOption(bool is_restore, std::string path)
-        : is_restore(is_restore), state_path(path) {}
+        : is_restore(is_restore), state_path(path + "/") {}
 };
 
 class Option {

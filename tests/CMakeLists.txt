@@ -7,6 +7,7 @@ add_subdirectory(third_party/googletest)
 add_executable(
     my_tests
     test_checkpoint.cpp
+    test_restore.cpp
     test_hello.cpp
 )
 

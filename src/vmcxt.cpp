@@ -67,7 +67,7 @@ bool VMCxt::explore() {
   return true;
 }
 
-bool VMCxt::execute() {
+optional<vector<wasmtime_val_t>> VMCxt::execute() {
     wasmtime_error_t *error;
 
     // Run it.
@@ -104,7 +104,7 @@ bool VMCxt::execute() {
       }
     }
     
-    return true;
+    return vector<wasmtime_val_t>(results_vec, results_vec+results->size);
 }
 
 

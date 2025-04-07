@@ -5,6 +5,7 @@
 
 #include <fmt/ranges.h>
 #include <fstream>
+#include <filesystem>
 
 uint32_t parse_pc(std::string dir) {
   const std::string path = dir + "wasm_pc.img";

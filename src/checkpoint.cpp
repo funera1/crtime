@@ -39,7 +39,7 @@ uint32_t Checkpointer::checkpoint_pc() {
     auto ret = vm->get_address_map();
     if (!ret.has_value()) {
         spdlog::error("failed to get address map");
-        exit(1);
+        return -1;
     }
     AddressMap addrmap = ret.value();
     spdlog::info("Get address map");
@@ -69,4 +69,13 @@ void Checkpointer::checkpoint_globals() {
       spdlog::error("failed to checkpoint globals");
     }
     spdlog::info("Checkpoint globals");
+}
+
+bool Checkpointer::write_binary(const fs::path& filename, uint8_t *data, size_t size){
+    std::filesystem::path full_path = dir / filename;
+
+    std::ofstream fout(full_path, std::ios::out | std::ios::binary);
+    fout.write((char *)data, size);
+    fout.close();
+    return true;
 }

@@ -74,13 +74,6 @@ void instantiate_wasi(wasmtime_context_t *context, wasm_trap_t *trap) {
     exit_with_error("failed to instantiate WASI", error, NULL);
 }
 
-bool write_binary(std::string filepath, uint8_t *data, size_t size){
-    std::ofstream fout(filepath, std::ios::out | std::ios::binary);
-    fout.write((char *)data, size);
-    fout.close();
-    return true;
-}
-
 wasmtime_val_t* wasmtime_val_new(const wasm_valtype_vec_t *types) {
     size_t count = types->size;
     wasmtime_val_t* vals = (wasmtime_val_t *)calloc(count, sizeof(wasmtime_val_t));

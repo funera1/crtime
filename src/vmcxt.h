@@ -25,7 +25,7 @@ public:
     
     bool initialize();
     bool explore();
-    bool execute();
+    optional<vector<wasmtime_val_t>> execute();
     
     // privateでもいい
     wasmtime_instance_t get_instance();

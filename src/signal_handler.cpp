@@ -46,19 +46,11 @@ void sigtrap_handler(int sig, siginfo_t *info, void *context) {
     
     Checkpointer C(global_vm, regs);
 
-    // checkpoint the program counter
+    // checkpoint module
     uint32_t pc = C.checkpoint_pc();
-
-    // checkpoint stack
     C.checkpoint_stack(pc);
-    
-    // checkpoint locals
     C.checkpoint_locals(pc);
-
-    // checkpoint the memory
     C.checkpoint_memory();
-
-    // checkpoint globals
     C.checkpoint_globals();
 
     // resume registers
