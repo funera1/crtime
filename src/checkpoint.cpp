@@ -29,7 +29,7 @@ void Checkpointer::checkpoint_locals(uint32_t pc) {
     spdlog::debug("locals: [{}]", fmt::join(locals.values, ", "));
 
     vector<char> buffer = struct_pack::serialize(locals);
-    if (!write_binary("wasm_local.img", (uint8_t *)buffer.data(), buffer.size())) {
+    if (!write_binary("wasm_locals.img", (uint8_t *)buffer.data(), buffer.size())) {
       spdlog::error("failed to checkpoint locals");
     }
     spdlog::info("Checkpoint locals");
