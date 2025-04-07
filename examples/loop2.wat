@@ -1,5 +1,5 @@
 (module
-  (func $start (export "_start")
+  (func $start (export "_start") (result i32)
     (local $i i32)  ;; ループカウンタ
     (local $sum i32)  ;; 合計値
 
@@ -18,6 +18,13 @@
           br $exit  ;; ループを抜ける
         end
 
+        local.get $i
+        i32.const 5
+        i32.eq  ;; $i == 5 ならcheckpoint
+        if 
+          nop
+        end
+
         ;; sum += i
         local.get $sum
         local.get $i
@@ -34,7 +41,5 @@
       )
     )
     local.get $sum
-    nop
-    drop
   )
 )

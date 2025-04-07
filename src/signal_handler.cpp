@@ -72,6 +72,15 @@ void sigtrap_handler(int sig, siginfo_t *info, void *context) {
       spdlog::error("failed to checkpoint stack");
     }
     spdlog::info("Checkpoint stack");
+    
+    // checkpoint locals
+    Locals locals = global_vm->get_locals(regs[ENC_RSP], 0);
+    spdlog::debug("locals: [{}]", fmt::join(locals.values, ", "));
+    buffer = struct_pack::serialize(locals);
+    if (!write_binary("wasm_local.img", (uint8_t *)buffer.data(), buffer.size())) {
+      spdlog::error("failed to checkpoint locals");
+    }
+    spdlog::info("Checkpoint locals");
 
     // checkpoint the memory
     vector<uint8_t> memory = global_vm->get_memory().value_or(vector<uint8_t>(0));

@@ -232,3 +232,42 @@ std::vector<global_t> VMCxt::get_globals() {
 
   return globals;
 }
+
+enum WasmValType {
+  I32 = 0x7F,
+  I64 = 0x7E,
+  F32 = 0x7D,
+  F64 = 0x7C,
+};
+
+Locals VMCxt::get_locals(uintptr_t rsp, size_t index) {
+  // local infoを取得
+  wasmtime_local_info_t *data;
+  size_t len;
+  wasmtime_module_local_info(module, index, &data, &len);
+  vector<wasmtime_local_info_t> local_info(data, data+len);
+  
+  // localを取得
+  vector<uint32_t> locals(len);
+  vector<uint8_t> types(len);
+  for (int i = 0; i < len; i++) {
+    wasmtime_local_info_t info = local_info[i];
+    types[i] = info.ty;
+    spdlog::debug("{}th offset: {}", i, info.offset);
+    switch (info.ty) {
+      case WasmValType::I32:
+      case WasmValType::F32:
+        locals[i] = *(uint32_t *)(rsp + info.offset);
+        break;
+      case WasmValType::I64:
+      case WasmValType::F64:
+        spdlog::error("Not support i64 and f64");
+        break;
+      default:
+        spdlog::error("Not support i128 and more");
+        break;
+    }
+  }
+  
+  return Locals(types, locals);
+}

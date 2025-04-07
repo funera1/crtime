@@ -43,6 +43,17 @@ struct Stack {
     YLT_REFL(Stack, metadata, values);
 };
 
+struct Locals {
+  vector<uint8_t> types;
+  vector<uint32_t> values;
+  
+  Locals() = default;
+  Locals(vector<uint8_t> ty, vector<uint32_t> vals): types(ty), values(vals) {}
+
+  // YLT_REFLマクロを使ってメンバを登録
+  YLT_REFL(Locals, types, values);
+};
+
 Stack reconstruct_stack(vector<uintptr_t> &regs, std::vector<wasmtime_ssmap_entry_t> &stack_size_map, uint32_t pc);
 vector<uint32_t> get_stack_vals(Stack st);
 
