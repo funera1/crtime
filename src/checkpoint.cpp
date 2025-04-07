@@ -1,0 +1,72 @@
+#include <filesystem>
+#include <fstream>
+#include <vmcxt.h>
+#include <stack.h>
+#include <regs.h>
+#include <checkpoint.h>
+#include <ylt/struct_pack.hpp>
+#include <fmt/ranges.h>
+
+using namespace std;
+namespace fs = std::filesystem;
+
+void Checkpointer::checkpoint_stack(uint32_t pc) {
+    vector<wasmtime_ssmap_entry_t> stack_size_maps = vm->get_stack_size_maps();
+    spdlog::info("Get stack size map");
+    Stack stack = reconstruct_stack(regs, stack_size_maps, pc);
+    spdlog::debug("stack: [{}]", fmt::join(stack.values, ", "));
+    spdlog::info("Reconstruct stack");
+    
+    vector<char> buffer = struct_pack::serialize(stack);
+    if (!write_binary("wasm_stack.img", (uint8_t *)buffer.data(), buffer.size())) {
+      spdlog::error("failed to checkpoint stack");
+    }
+    spdlog::info("Checkpoint stack");
+}
+
+void Checkpointer::checkpoint_locals(uint32_t pc) {
+    Locals locals = vm->get_locals(regs[ENC_RSP], 0);
+    spdlog::debug("locals: [{}]", fmt::join(locals.values, ", "));
+
+    vector<char> buffer = struct_pack::serialize(locals);
+    if (!write_binary("wasm_local.img", (uint8_t *)buffer.data(), buffer.size())) {
+      spdlog::error("failed to checkpoint locals");
+    }
+    spdlog::info("Checkpoint locals");
+}
+
+uint32_t Checkpointer::checkpoint_pc() {
+    auto ret = vm->get_address_map();
+    if (!ret.has_value()) {
+        spdlog::error("failed to get address map");
+        exit(1);
+    }
+    AddressMap addrmap = ret.value();
+    spdlog::info("Get address map");
+
+    uint32_t pc = addrmap.get_wasm_offset(regs[ENC_RIP]);
+    if (!write_binary("wasm_pc.img", reinterpret_cast<uint8_t*>(&pc), sizeof(pc))) {
+      spdlog::error("failed to checkpoint program counter");
+    }
+    spdlog::info("Checkpoint program counter");
+    
+    return pc;
+}
+
+void Checkpointer::checkpoint_memory() {
+    vector<uint8_t> memory = vm->get_memory().value_or(vector<uint8_t>(0));
+    if (!write_binary("wasm_memory.img", memory.data(), memory.size())) {
+      spdlog::error("failed to checkpoint memory");
+    }
+    spdlog::info("Checkpoint memory");
+}
+
+void Checkpointer::checkpoint_globals() {
+    std::vector<global_t> global = vm->get_globals();
+    struct globals g{global};
+    vector<char> buffer = struct_pack::serialize(g);
+    if (!write_binary("wasm_global.img", (uint8_t *)buffer.data(), buffer.size())) {
+      spdlog::error("failed to checkpoint globals");
+    }
+    spdlog::info("Checkpoint globals");
+}

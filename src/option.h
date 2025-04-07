@@ -35,6 +35,7 @@ public:
 
     // TODO: wasmが正しいものかを判定する
     bool is_valid() const { return true; }
+    void set_restore_opt(RestoreOption o);
 };
 
 Option parse_options(int argc, char* argv[]);

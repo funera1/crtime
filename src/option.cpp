@@ -39,3 +39,7 @@ Option parse_options(int argc, char* argv[]) {
     
     return opt;
 }
+
+void Option::set_restore_opt(RestoreOption o) {
+    restore_opt = o;
+}

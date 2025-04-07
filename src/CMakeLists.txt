@@ -5,6 +5,7 @@ add_library(libcrtime STATIC
     utils.cpp
     signal_handler.cpp
     option.cpp
+    checkpoint.cpp
     restore.cpp
 )
 
