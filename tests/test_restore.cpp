@@ -154,3 +154,28 @@ TEST_F(TempFileTest, restore_local) {
     actual = restore_wat(wat).value();
     assert_eq_wasmtime_vec(expect, actual);
 }
+
+TEST_F(TempFileTest, restore_memory) {
+    std::string wat = R"(
+(module
+  (memory $mem 1) ;; メモリサイズ 1ページ（64KB）を確保
+
+  (func $start (export "_start") (result i32)
+    ;; メモリにデータを書き込む
+    i32.const 0      ;; メモリのオフセット 0
+    i32.const 42     ;; 書き込む値
+    i32.store        ;; メモリオフセット0に42を書き込む
+
+    nop              ;; checkpoint
+
+    ;; メモリからデータを読み込む
+    i32.const 0      ;; メモリのオフセット 0
+    i32.load         ;; メモリから値を読み込む（42が読み込まれる）
+  )
+)
+)";
+    wasmtime_vec expect, actual;
+    expect = exec_wat_2(wat).value();
+    actual = restore_wat(wat).value();
+    assert_eq_wasmtime_vec(expect, actual);
+}
