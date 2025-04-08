@@ -44,7 +44,7 @@ bool VMCxt::initialize() {
     
     // new instance
     // NOTE: memoryの操作はinstanceを介してやる
-    wasmtime_instance_t instance;
+    // wasmtime_instance_t instance;
     error = wasmtime_instance_new(context, module, NULL, 0, &instance, &trap);
     if (error || trap) {
         printf("Failed to instantiate module\n");
@@ -196,9 +196,9 @@ vector<wasmtime_ssmap_entry_t> VMCxt::get_stack_size_maps() {
 }
 
 std::optional<Memory> VMCxt::get_memory() {
-  wasmtime_instance_t instance = get_instance();
+  // wasmtime_instance_t instance = get_instance();
+  //
   wasmtime_extern_t export_;
-  
   std::string name = "memory";
   bool ok = wasmtime_instance_export_get(context, &instance, name.c_str(), name.size(), &export_);
   if (!ok || export_.kind != WASMTIME_EXTERN_MEMORY) {
@@ -312,14 +312,6 @@ Locals VMCxt::get_locals(uintptr_t rsp, size_t index) {
 }
 
 void VMCxt::restore_memory(wasmtime_instance_t *instance) {
-  // spdlog::info("restore memory");
-  // auto ret = get_memory();
-  // if (!ret) {
-  //   spdlog::error("failed to get memory");
-  //   return;
-  // }
-  // Memory mem = ret.value();
-
     // メモリを取得
     wasmtime_extern_t item;
     bool ok = wasmtime_instance_export_get(context, instance, "memory", strlen("memory"), &item);

@@ -54,13 +54,8 @@ uint32_t Checkpointer::checkpoint_pc() {
 }
 
 void Checkpointer::checkpoint_memory() {
-    // vector<uint8_t> memory = vm->get_memory().value_or(vector<uint8_t>(0));
-    size_t memsize = vm->get_memsize().value_or(0);
-    uintptr_t vmctx = regs[ENC_R14];
-    // TODO: 0x50は固定じゃないので正しい値を取得できるようにする
-    uintptr_t memptr = *(uintptr_t *)(vmctx+0x50);
-
-    if (!write_binary("wasm_memory.img", reinterpret_cast<uint8_t*>(memptr), memsize)) {
+    Memory mem = vm->get_memory().value();
+    if (!write_binary("wasm_memory.img", reinterpret_cast<uint8_t*>(mem.data), mem.size)) {
       spdlog::error("failed to checkpoint memory");
     }
     spdlog::info("Checkpoint memory");

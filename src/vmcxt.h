@@ -49,6 +49,7 @@ private:
     wasmtime_linker_t *linker;
     wasmtime_module_t *module; 
     wasmtime_context_t *context;
+    wasmtime_instance_t instance;
     wasm_trap_t *trap;
     Option option;
 };
