@@ -40,7 +40,7 @@ public:
     std::vector<global_t> get_globals();
     Locals get_locals(uintptr_t rsp, size_t index);
 
-    void restore_memory();
+    void restore_memory(wasmtime_instance_t *instnace);
     
 private:
     wasm_engine_t *engine;

@@ -28,19 +28,10 @@ bool VMCxt::initialize() {
 
     engine = wasm_engine_new_with_config(config);
     store = wasmtime_store_new(engine, NULL, NULL);
-    linker = wasmtime_linker_new(engine);
     context = wasmtime_store_context(store);
-    if (!engine || !store || !linker || !context) return false;
+    if (!engine || !store || !context) return false;
 
-    // linker setting
-    wasmtime_linker_allow_unknown_exports(linker, true);
-
-    // Create a linker with WASI functions defined
-    wasmtime_error_t *error = wasmtime_linker_define_wasi(linker);
-    if (error != NULL) {
-        exit_with_error("failed to link wasi", error, NULL);
-    }
-    
+    wasmtime_error_t *error;
     // new module
     // Compile our modules
     wasm_byte_vec_t wasm = option.wasm;
@@ -49,18 +40,42 @@ bool VMCxt::initialize() {
         exit_with_error("failed to compile module", error, NULL);
     }
     wasm_byte_vec_delete(&wasm);
+    spdlog::info("new module");
     
+    // new instance
+    // NOTE: memoryの操作はinstanceを介してやる
+    wasmtime_instance_t instance;
+    error = wasmtime_instance_new(context, module, NULL, 0, &instance, &trap);
+    if (error || trap) {
+        printf("Failed to instantiate module\n");
+        exit(1);
+    }
+    spdlog::info("new instance");
 
-    // Instantiate wasi
-    instantiate_wasi(context, trap);
+    // restore memory and global
+    if (option.restore_opt.is_restore) {
+      restore_memory(&instance);
+    }
+
+    // linker setting
+    linker = wasmtime_linker_new(engine);
+    wasmtime_linker_allow_unknown_exports(linker, true);
+    spdlog::info("new linker");
 
     // Instantiate the module
-    error = wasmtime_linker_module(linker, context, "", 0, module);
+    // error = wasmtime_linker_module(linker, context, "", 0, module);
+    error = wasmtime_linker_define_instance(linker, context, "", 0, &instance);
     if (error != NULL) {
         exit_with_error("failed to instantiate module", error, NULL);
     }
+    spdlog::info("linker define instance");
 
-    // restore memory and global
+    // Create a linker with WASI functions defined
+    error = wasmtime_linker_define_wasi(linker);
+    if (error != NULL) {
+        exit_with_error("failed to link wasi", error, NULL);
+    }
+    spdlog::info("linker define wasi");
 
     return true;
 }
@@ -79,6 +94,7 @@ optional<vector<wasmtime_val_t>> VMCxt::execute() {
     if (error != NULL) {
         exit_with_error("failed to locate default export for module", error, NULL);
     }
+    spdlog::info("get entry func");
     
     // 関数の型を取得
     wasm_functype_t* ftype = wasmtime_func_type(context, &func);
@@ -88,6 +104,7 @@ optional<vector<wasmtime_val_t>> VMCxt::execute() {
     // TODO: 自由に引数/返り値を扱えるようにする(現在は両方0しかだめ)
     wasmtime_val_t* params_vec = wasmtime_val_new(params);
     wasmtime_val_t* results_vec = wasmtime_val_new(results);
+    spdlog::info("func call");
     error = wasmtime_func_call(context, &func, params_vec, params->size, results_vec, results->size, &trap);
     if (error != NULL || trap != NULL) {
         exit_with_error("error calling default export", error, trap);
@@ -294,25 +311,31 @@ Locals VMCxt::get_locals(uintptr_t rsp, size_t index) {
   return Locals(types, locals);
 }
 
-void VMCxt::restore_memory() {
-  spdlog::info("restore memory");
-  auto ret = get_memory();
-  if (!ret) {
-    spdlog::error("failed to get memory");
-    return;
-  }
-  Memory mem = ret.value();
-  spdlog::debug("memory size: {}", mem.size);
-  spdlog::debug("memory[0]: {}", *(uint32_t*)(mem.data));
-  
-  // TODO: parse wasm_memoy.img
-  vector<uint8_t> newm(4, 10);
+void VMCxt::restore_memory(wasmtime_instance_t *instance) {
+  // spdlog::info("restore memory");
+  // auto ret = get_memory();
+  // if (!ret) {
+  //   spdlog::error("failed to get memory");
+  //   return;
+  // }
+  // Memory mem = ret.value();
+
+    // メモリを取得
+    wasmtime_extern_t item;
+    bool ok = wasmtime_instance_export_get(context, instance, "memory", strlen("memory"), &item);
+    if (!ok || item.kind != WASMTIME_EXTERN_MEMORY) {
+        printf("Failed to get memory\n");
+        exit(1);
+    }
+    wasmtime_memory_t memory = item.of.memory;
+
+    // ホストがメモリに 42 を書き込む
+    uint32_t value = 42;
+    uint8_t* mem_data = wasmtime_memory_data(context, &memory);
+    memcpy(mem_data, &value, sizeof(value));
   
   // if (!wasmtime_memory_write(context, &mem.memory, 0, mem.data, mem.size)) {
-  if (!wasmtime_memory_write(context, &mem.memory, 0, newm.data(), newm.size())) {
-    spdlog::error("failed to restore memory");
-  }
-  
-  spdlog::debug("memory[0]: {}", *(uint32_t*)(mem.data));
-  
+  // if (!wasmtime_memory_write(context, &mem.memory, 0, newm.data(), newm.size())) {
+  //   spdlog::error("failed to restore memory");
+  // }
 }
