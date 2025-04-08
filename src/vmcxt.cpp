@@ -50,8 +50,6 @@ bool VMCxt::initialize() {
     }
     wasm_byte_vec_delete(&wasm);
     
-    // restore memory and global
-    // memoryを取得. メモリを上書き
 
     // Instantiate wasi
     instantiate_wasi(context, trap);
@@ -61,6 +59,8 @@ bool VMCxt::initialize() {
     if (error != NULL) {
         exit_with_error("failed to instantiate module", error, NULL);
     }
+
+    // restore memory and global
 
     return true;
 }
@@ -121,6 +121,10 @@ wasmtime_instance_t VMCxt::get_instance() {
     return instance;
 }
 
+wasmtime_context_t* VMCxt::get_context() {
+  return context;
+}
+
 optional<AddressMap> VMCxt::get_address_map() {
     // moduleのnullチェック
     if (module == NULL)
@@ -174,7 +178,7 @@ vector<wasmtime_ssmap_entry_t> VMCxt::get_stack_size_maps() {
     return stack_size_map;
 }
 
-std::optional<vector<uint8_t>> VMCxt::get_memory() {
+std::optional<Memory> VMCxt::get_memory() {
   wasmtime_instance_t instance = get_instance();
   wasmtime_extern_t export_;
   
@@ -188,7 +192,7 @@ std::optional<vector<uint8_t>> VMCxt::get_memory() {
   wasmtime_memory_t memory = export_.of.memory;
   uint8_t* data = wasmtime_memory_data(context, &memory);
   size_t size = wasmtime_memory_data_size(context, &memory);
-  return std::vector<uint8_t>(data, data+size);
+  return Memory{memory, data, size};
 }
 
 std::optional<size_t> VMCxt::get_memsize() {
@@ -288,4 +292,27 @@ Locals VMCxt::get_locals(uintptr_t rsp, size_t index) {
   }
   
   return Locals(types, locals);
+}
+
+void VMCxt::restore_memory() {
+  spdlog::info("restore memory");
+  auto ret = get_memory();
+  if (!ret) {
+    spdlog::error("failed to get memory");
+    return;
+  }
+  Memory mem = ret.value();
+  spdlog::debug("memory size: {}", mem.size);
+  spdlog::debug("memory[0]: {}", *(uint32_t*)(mem.data));
+  
+  // TODO: parse wasm_memoy.img
+  vector<uint8_t> newm(4, 10);
+  
+  // if (!wasmtime_memory_write(context, &mem.memory, 0, mem.data, mem.size)) {
+  if (!wasmtime_memory_write(context, &mem.memory, 0, newm.data(), newm.size())) {
+    spdlog::error("failed to restore memory");
+  }
+  
+  spdlog::debug("memory[0]: {}", *(uint32_t*)(mem.data));
+  
 }

@@ -8,6 +8,7 @@
 #include "regs.h"
 #include "stack.h"
 #include "utils.h"
+#include "memory.h"
 
 static char altstack[8192];
 static VMCxt *global_vm;

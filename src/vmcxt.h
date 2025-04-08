@@ -7,6 +7,7 @@
 #include <signal.h>
 #include "option.h"
 #include "stack.h"
+#include "memory.h"
 
 typedef struct global {
   int kind;
@@ -29,14 +30,17 @@ public:
     
     // privateでもいい
     wasmtime_instance_t get_instance();
+    wasmtime_context_t* get_context();
     optional<AddressMap> get_address_map();
     vector<wasmtime_ssmap_entry_t> get_stack_size_maps();
 
-    std::optional<std::vector<uint8_t>> get_memory();
+    std::optional<Memory> get_memory();
     std::optional<size_t> get_memsize();
     std::vector<int> get_stack();
     std::vector<global_t> get_globals();
     Locals get_locals(uintptr_t rsp, size_t index);
+
+    void restore_memory();
     
 private:
     wasm_engine_t *engine;
