@@ -49,6 +49,9 @@ bool VMCxt::initialize() {
         exit_with_error("failed to compile module", error, NULL);
     }
     wasm_byte_vec_delete(&wasm);
+    
+    // restore memory and global
+    // memoryを取得. メモリを上書き
 
     // Instantiate wasi
     instantiate_wasi(context, trap);
@@ -186,6 +189,21 @@ std::optional<vector<uint8_t>> VMCxt::get_memory() {
   uint8_t* data = wasmtime_memory_data(context, &memory);
   size_t size = wasmtime_memory_data_size(context, &memory);
   return std::vector<uint8_t>(data, data+size);
+}
+
+std::optional<size_t> VMCxt::get_memsize() {
+  wasmtime_instance_t instance = get_instance();
+  wasmtime_extern_t export_;
+  
+  std::string name = "memory";
+  bool ok = wasmtime_instance_export_get(context, &instance, name.c_str(), name.size(), &export_);
+  if (!ok || export_.kind != WASMTIME_EXTERN_MEMORY) {
+    spdlog::error("failed to get memory export");
+    return nullopt;
+  }
+  wasmtime_memory_t memory = export_.of.memory;
+
+  return wasmtime_memory_data_size(context, &memory);
 }
 
 // TODO: 実装できてない, globalを事前に特定の名前でexportしないといけない設計になっていて良くない

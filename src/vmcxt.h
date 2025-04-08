@@ -33,6 +33,7 @@ public:
     vector<wasmtime_ssmap_entry_t> get_stack_size_maps();
 
     std::optional<std::vector<uint8_t>> get_memory();
+    std::optional<size_t> get_memsize();
     std::vector<int> get_stack();
     std::vector<global_t> get_globals();
     Locals get_locals(uintptr_t rsp, size_t index);
