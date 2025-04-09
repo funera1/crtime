@@ -100,6 +100,29 @@ Locals parse_locals(string dir) {
   return result.value();
 }
 
+Memory parse_memory(string dir) {
+  const std::string path = dir + "wasm_memory.img";
+    std::ifstream file(path, std::ios::binary | std::ios::ate);
+    if (!file.is_open()) {
+        spdlog::error("Failed to open {:s}", path);
+        exit(1);
+    }
+
+    size_t size = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    std::vector<uint8_t> buffer(size);
+    if (!file.read(reinterpret_cast<char*>(buffer.data()), size)) {
+        spdlog::error("Failed to read wasm_memory.img");
+        exit(1);
+    }
+    file.close();
+
+    uint8_t* data = buffer.data();
+    
+    return Memory(data, size);
+}
+
 void set_restore_info(wasm_config_t* config, RestoreOption opt) {
     if (!opt.is_restore) {
       return;

@@ -7,4 +7,5 @@
 
 uint32_t parse_pc(std::string dir);
 Stack parse_stack(std::string dir);
+Memory parse_memory(string dir);
 void set_restore_info(wasm_config_t* config, RestoreOption opt);

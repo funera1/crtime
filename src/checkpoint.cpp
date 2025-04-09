@@ -54,7 +54,14 @@ uint32_t Checkpointer::checkpoint_pc() {
 }
 
 void Checkpointer::checkpoint_memory() {
-    Memory mem = vm->get_memory().value();
+  // get_memoryの返り値がnulloptの場合、checkpointせずにreturnする
+    auto ret = vm->get_memory();
+    if (!ret.has_value()) {
+        spdlog::info("Uncheckpointed memory");
+        return;
+    }
+    // get_memoryの返り値をMemory型にキャスト
+    Memory mem = ret.value();
     if (!write_binary("wasm_memory.img", reinterpret_cast<uint8_t*>(mem.data), mem.size)) {
       spdlog::error("failed to checkpoint memory");
     }

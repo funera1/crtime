@@ -209,7 +209,8 @@ std::optional<Memory> VMCxt::get_memory() {
   wasmtime_memory_t memory = export_.of.memory;
   uint8_t* data = wasmtime_memory_data(context, &memory);
   size_t size = wasmtime_memory_data_size(context, &memory);
-  return Memory{memory, data, size};
+  // NOTE: get_memoryで呼び出した側ではすでにmemoryが開放されている可能性がある
+  return Memory{&memory, data, size};
 }
 
 std::optional<size_t> VMCxt::get_memsize() {
@@ -317,17 +318,28 @@ void VMCxt::restore_memory(wasmtime_instance_t *instance) {
     bool ok = wasmtime_instance_export_get(context, instance, "memory", strlen("memory"), &item);
     if (!ok || item.kind != WASMTIME_EXTERN_MEMORY) {
         printf("Failed to get memory\n");
-        exit(1);
+        return;
     }
     wasmtime_memory_t memory = item.of.memory;
 
-    // ホストがメモリに 42 を書き込む
-    uint32_t value = 42;
-    uint8_t* mem_data = wasmtime_memory_data(context, &memory);
-    memcpy(mem_data, &value, sizeof(value));
-  
-  // if (!wasmtime_memory_write(context, &mem.memory, 0, mem.data, mem.size)) {
-  // if (!wasmtime_memory_write(context, &mem.memory, 0, newm.data(), newm.size())) {
-  //   spdlog::error("failed to restore memory");
-  // }
+    // Read wasm_memory.img
+    Memory restore_memory = parse_memory(option.restore_opt.state_path);
+    size_t size = restore_memory.size;
+    uint8_t* data = restore_memory.data;
+    
+    // restore memory
+    // ページサイズがreadしたサイズより小さい場合は、ページサイズを上書きする
+    size_t old_size = wasmtime_memory_data_size(context, &memory);
+    if (old_size < size) {
+        spdlog::info("grow memory size: {} -> {}", old_size, size);
+        assert((size-old_size) % WASM_PAGE_SIZE == 0);
+        int delta = (size - old_size) / WASM_PAGE_SIZE;
+        wasmtime_memory_grow(context, &memory, delta, &old_size);
+    }
+    
+    // memoryにdataを書き込む
+    uint8_t* memory_data = wasmtime_memory_data(context, &memory);
+    if (memcpy(memory_data, data, size) == nullptr) {
+        spdlog::error("Failed to write data to memory");
+    }
 }
