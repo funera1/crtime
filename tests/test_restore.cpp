@@ -180,3 +180,35 @@ TEST_F(TempFileTest, restore_memory) {
     actual = restore_wat(wat).value();
     assert_eq_wasmtime_vec(expect, actual);
 }
+
+TEST_F(TempFileTest, restore_globals) {
+    std::string wat = R"(
+(module
+  (global $a (export "a") (mut i32) (i32.const 77232))
+  (global $b (export "b") (mut i32) (i32.const 0))
+  (global $c (export "c") i32 (i32.const 10))
+
+  (func $start (export "_start") (result i32)
+    ;; ローカル変数に値を設定
+    i32.const 5
+    global.set $a       ;; $a = 5
+
+    i32.const 10
+    global.set $b       ;; $b = 10
+
+    nop
+
+    ;; ローカル変数を加算して結果をスタックに積む
+    global.get $a       ;; スタックに$aの値（5）を積む
+    global.get $b       ;; スタックに$bの値（10）を積む
+    global.get $c       ;; スタックに$cの値（10）を積む
+    i32.add             ;; 10 + 10 = 20
+    i32.add             ;; 5 + 20 = 25
+  )
+)
+)";
+    wasmtime_vec expect, actual;
+    expect = exec_wat_2(wat).value();
+    actual = restore_wat(wat).value();
+    assert_eq_wasmtime_vec(expect, actual);
+}

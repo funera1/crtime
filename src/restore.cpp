@@ -123,6 +123,34 @@ Memory parse_memory(string dir) {
     return Memory(data, size);
 }
 
+Globals parse_globals(string dir) {
+  // open file
+  const std::string path = dir + "wasm_globals.img";
+  auto file_info = open_file(path);
+  if (!file_info) {
+    spdlog::error("failed to open file");
+    return Globals();
+  }
+  auto [size, file] = move(file_info.value());
+  
+  /// restore locals
+  // vectorにファイルの内容を格納
+  std::vector<char> buffer(size);
+  if (!file.read(buffer.data(), size)) {
+      spdlog::error("failed to read {}", path);
+  }
+  
+  // deseriaize
+  auto result = struct_pack::deserialize<Globals>(buffer);
+  if (!result) {
+    auto error = result.error();
+    spdlog::error("failed to deserialze locals: {}", struct_pack::error_message(error));
+    return Globals();
+  }
+
+  return result.value();
+}
+
 void set_restore_info(wasm_config_t* config, RestoreOption opt) {
     if (!opt.is_restore) {
       return;

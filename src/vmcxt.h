@@ -45,6 +45,7 @@ public:
     Locals get_locals(uintptr_t rsp, size_t index);
 
     void restore_memory(wasmtime_instance_t *instnace);
+    void restore_globals(wasmtime_instance_t *instnace);
     
 private:
     wasm_engine_t *engine;

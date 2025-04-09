@@ -29,7 +29,7 @@ Usage:
 
 ## TODO
 - [x] C/R memory
-- [ ] C/R global
+- [x] C/R global
 - [x] C/R program counter
 - [x] C/R stack
 - [ ] 任意の実行ポイントでcheckpoint

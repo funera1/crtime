@@ -55,6 +55,7 @@ bool VMCxt::initialize() {
     // restore memory and global
     if (option.restore_opt.is_restore) {
       restore_memory(&instance);
+      restore_globals(&instance);
     }
 
     // linker setting
@@ -222,7 +223,6 @@ std::optional<size_t> VMCxt::get_memsize() {
   return wasmtime_memory_data_size(context, &memory);
 }
 
-// TODO: 実装できてない, globalを事前に特定の名前でexportしないといけない設計になっていて良くない
 Globals VMCxt::get_globals() {
   wasmtime_instance_t instance = get_instance();
   size_t export_size = wasmtime_instance_export_size(context, &instance);
@@ -235,9 +235,15 @@ Globals VMCxt::get_globals() {
     wasmtime_instance_export_nth(context, &instance, i, &name_ptr, &name_len, &export_);
 
     if (export_.kind == WASMTIME_EXTERN_GLOBAL) {
+      wasmtime_global_t global = export_.of.global;
+      // globalがimutableならskip
+      const wasm_globaltype_t *global_type = wasmtime_global_type(context, &global);
+      if (wasm_globaltype_mutability(global_type) == WASM_CONST) {
+        continue;
+      }
+
       std::string name(name_ptr, name_len);
       spdlog::info("global name: {}", name);
-      wasmtime_global_t global = export_.of.global;
       wasmtime_val_t value;
       wasmtime_global_get(context, &global, &value);
 
@@ -337,4 +343,43 @@ void VMCxt::restore_memory(wasmtime_instance_t *instance) {
     if (memcpy(memory_data, data, size) == nullptr) {
         spdlog::error("Failed to write data to memory");
     }
+}
+
+void VMCxt::restore_globals(wasmtime_instance_t *instance) {
+  Globals restore_globals = parse_globals(option.restore_opt.state_path);
+  vector<global_t> g = restore_globals.globals;
+  
+  for (int i = 0; i < g.size(); i++) {
+    wasmtime_extern_t export_;
+    char *name_ptr = nullptr;
+    size_t name_len = 0;
+    bool ok = wasmtime_instance_export_get(context, instance, g[i].name.c_str(), g[i].name.size(), &export_);
+    if (!ok || !export_.kind == WASMTIME_EXTERN_GLOBAL) {
+      spdlog::error("failed to get global export");
+      continue;
+    }
+    wasmtime_global_t global = export_.of.global;
+    wasmtime_val_t value;
+    wasmtime_global_get(context, &global, &value);
+
+    // resotre
+    switch (value.kind) {
+      case WASM_I32:
+        value.of.i32 = g[i].value;
+        break;
+      case WASM_F32:
+        value.of.f32 = g[i].value;
+        break;
+      case WASM_I64:
+        value.of.i64 = g[i].value;
+        break;
+      case WASM_F64:
+        value.of.f64 = g[i].value;
+        break;
+      default:
+        spdlog::error("unsupported type");
+        break;
+    }
+    wasmtime_global_set(context, &global, &value);
+  }
 }
