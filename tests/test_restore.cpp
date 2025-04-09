@@ -159,6 +159,7 @@ TEST_F(TempFileTest, restore_memory) {
     std::string wat = R"(
 (module
   (memory $mem 1) ;; メモリサイズ 1ページ（64KB）を確保
+  (export "memory" (memory $mem))
 
   (func $start (export "_start") (result i32)
     ;; メモリにデータを書き込む
