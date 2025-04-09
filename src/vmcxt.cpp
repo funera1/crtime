@@ -129,13 +129,7 @@ optional<vector<wasmtime_val_t>> VMCxt::execute() {
 
 
 wasmtime_instance_t VMCxt::get_instance() {
-    wasmtime_instance_t instance;
-    wasmtime_error_t *error = wasmtime_linker_instantiate(linker, context, module, &instance, &trap);
-    if (error != NULL || trap != NULL) {
-      exit_with_error("failed to get module module", error, trap);
-    }
-
-    return instance;
+  return instance;
 }
 
 wasmtime_context_t* VMCxt::get_context() {
@@ -229,48 +223,49 @@ std::optional<size_t> VMCxt::get_memsize() {
 }
 
 // TODO: 実装できてない, globalを事前に特定の名前でexportしないといけない設計になっていて良くない
-std::vector<global_t> VMCxt::get_globals() {
+Globals VMCxt::get_globals() {
   wasmtime_instance_t instance = get_instance();
-  wasmtime_extern_t export_;
-
-  std::vector<global_t> globals;
+  size_t export_size = wasmtime_instance_export_size(context, &instance);
   
-  // TODO: 1文字しか対応できてない
-  std::string base_name = "global_";
-  for (int i = 0; i < 10; i++) {
-    std::string name = base_name + to_string(i);
-    bool ok = wasmtime_instance_export_get(context, &instance, name.c_str(), name.size(), &export_);
-    // TODO: エラーとglobalが存在するかの判定ができるようにする
-    if (!ok) {
-      break;
-    }
+  std::vector<global_t> globals;
+  for (int i = 0; i < export_size; i++) {
+    wasmtime_extern_t export_;
+    char *name_ptr = nullptr;
+    size_t name_len = 0;
+    wasmtime_instance_export_nth(context, &instance, i, &name_ptr, &name_len, &export_);
 
-    wasmtime_global_t global = export_.of.global;
-    wasmtime_val_t value;
-    wasmtime_global_get(context, &global, &value);
+    if (export_.kind == WASMTIME_EXTERN_GLOBAL) {
+      std::string name(name_ptr, name_len);
+      spdlog::info("global name: {}", name);
+      wasmtime_global_t global = export_.of.global;
+      wasmtime_val_t value;
+      wasmtime_global_get(context, &global, &value);
 
-    global_t g;
-    g.kind = value.kind;
-    switch(value.kind) {
-      case WASMTIME_I32:
-        g.value = value.of.i32;
-        break;
-      case WASMTIME_F32:
-        g.value = value.of.f32;
-        break;
-      case WASMTIME_I64:
-        g.value = value.of.i64;
-        break;
-      case WASMTIME_F64:
-        g.value = value.of.f64;
-        break;
-      default:
-        break;
+      global_t g;
+      g.kind = value.kind;
+      g.name = name;
+      switch(value.kind) {
+        case WASMTIME_I32:
+          g.value = value.of.i32;
+          break;
+        case WASMTIME_F32:
+          g.value = value.of.f32;
+          break;
+        case WASMTIME_I64:
+          g.value = value.of.i64;
+          break;
+        case WASMTIME_F64:
+          g.value = value.of.f64;
+          break;
+        default:
+          spdlog::error("unsupported type");
+          break;
+      }
+      globals.push_back(g);
     }
-    globals.push_back(g);
   }
 
-  return globals;
+  return Globals{globals};
 }
 
 enum WasmValType {

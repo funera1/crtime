@@ -8,15 +8,19 @@
 #include "option.h"
 #include "stack.h"
 #include "memory.h"
+#include <ylt/struct_pack.hpp>
 
 typedef struct global {
   int kind;
+  std::string name;
   int64_t value;
 } global_t;
 
-struct globals {
+struct Globals {
   // vector<wasmtime_val_t> globals;
   std::vector<global_t> globals;
+
+  YLT_REFL(Globals, globals);
 };
 
 class VMCxt {
@@ -37,7 +41,7 @@ public:
     std::optional<Memory> get_memory();
     std::optional<size_t> get_memsize();
     std::vector<int> get_stack();
-    std::vector<global_t> get_globals();
+    Globals get_globals();
     Locals get_locals(uintptr_t rsp, size_t index);
 
     void restore_memory(wasmtime_instance_t *instnace);

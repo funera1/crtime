@@ -69,8 +69,7 @@ void Checkpointer::checkpoint_memory() {
 }
 
 void Checkpointer::checkpoint_globals() {
-    std::vector<global_t> global = vm->get_globals();
-    struct globals g{global};
+    Globals g = vm->get_globals();
     vector<char> buffer = struct_pack::serialize(g);
     if (!write_binary("wasm_global.img", (uint8_t *)buffer.data(), buffer.size())) {
       spdlog::error("failed to checkpoint globals");
