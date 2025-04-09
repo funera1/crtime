@@ -313,73 +313,66 @@ Locals VMCxt::get_locals(uintptr_t rsp, size_t index) {
   return Locals(types, locals);
 }
 
+// Helper function to grow memory if needed
+void VMCxt::grow_memory_if_needed(wasmtime_memory_t& memory, size_t required_size) {
+    size_t current_size = wasmtime_memory_data_size(context, &memory);
+    if (current_size < required_size) {
+        spdlog::info("grow memory size: {} -> {}", current_size, required_size);
+        assert((required_size - current_size) % WASM_PAGE_SIZE == 0);
+        int delta = (required_size - current_size) / WASM_PAGE_SIZE;
+        wasmtime_memory_grow(context, &memory, delta, &current_size);
+    }
+}
+
+// Refactored restore_memory function
 void VMCxt::restore_memory(wasmtime_instance_t *instance) {
     // メモリを取得
     wasmtime_extern_t item;
     bool ok = wasmtime_instance_export_get(context, instance, "memory", strlen("memory"), &item);
     if (!ok || item.kind != WASMTIME_EXTERN_MEMORY) {
-        printf("Failed to get memory\n");
+        spdlog::error("Failed to get memory export");
         return;
     }
     wasmtime_memory_t memory = item.of.memory;
 
     // Read wasm_memory.img
-    Memory restore_memory = parse_memory(option.restore_opt.state_path);
-    size_t size = restore_memory.size;
-    uint8_t* data = restore_memory.data;
-    
-    // restore memory
-    // ページサイズがreadしたサイズより小さい場合は、ページサイズを上書きする
-    size_t old_size = wasmtime_memory_data_size(context, &memory);
-    if (old_size < size) {
-        spdlog::info("grow memory size: {} -> {}", old_size, size);
-        assert((size-old_size) % WASM_PAGE_SIZE == 0);
-        int delta = (size - old_size) / WASM_PAGE_SIZE;
-        wasmtime_memory_grow(context, &memory, delta, &old_size);
-    }
-    
-    // memoryにdataを書き込む
+    Memory mem = parse_memory(option.restore_opt.state_path);
+    uint8_t* data = mem.data;
+    size_t size = mem.size;
+
+    // Restore memory
+    grow_memory_if_needed(memory, size);
+
+    // Write data to memory
     uint8_t* memory_data = wasmtime_memory_data(context, &memory);
     if (memcpy(memory_data, data, size) == nullptr) {
         spdlog::error("Failed to write data to memory");
     }
 }
 
+// Refactored restore_globals function
 void VMCxt::restore_globals(wasmtime_instance_t *instance) {
-  Globals restore_globals = parse_globals(option.restore_opt.state_path);
-  vector<global_t> g = restore_globals.globals;
-  
-  for (int i = 0; i < g.size(); i++) {
-    wasmtime_extern_t export_;
-    char *name_ptr = nullptr;
-    size_t name_len = 0;
-    bool ok = wasmtime_instance_export_get(context, instance, g[i].name.c_str(), g[i].name.size(), &export_);
-    if (!ok || !export_.kind == WASMTIME_EXTERN_GLOBAL) {
-      spdlog::error("failed to get global export");
-      continue;
-    }
-    wasmtime_global_t global = export_.of.global;
-    wasmtime_val_t value;
-    wasmtime_global_get(context, &global, &value);
+    Globals restore_globals = parse_globals(option.restore_opt.state_path);
+    for (const auto& g : restore_globals.globals) {
+        wasmtime_extern_t export_;
+        bool ok = wasmtime_instance_export_get(context, instance, g.name.c_str(), g.name.size(), &export_);
+        if (!ok || export_.kind != WASMTIME_EXTERN_GLOBAL) {
+            spdlog::error("Failed to get global export for {}", g.name);
+            continue;
+        }
 
-    // resotre
-    switch (value.kind) {
-      case WASM_I32:
-        value.of.i32 = g[i].value;
-        break;
-      case WASM_F32:
-        value.of.f32 = g[i].value;
-        break;
-      case WASM_I64:
-        value.of.i64 = g[i].value;
-        break;
-      case WASM_F64:
-        value.of.f64 = g[i].value;
-        break;
-      default:
-        spdlog::error("unsupported type");
-        break;
+        wasmtime_global_t global = export_.of.global;
+        wasmtime_val_t value;
+        wasmtime_global_get(context, &global, &value);
+
+        // Restore global value
+        switch (value.kind) {
+            case WASM_I32: value.of.i32 = g.value; break;
+            case WASM_F32: value.of.f32 = g.value; break;
+            case WASM_I64: value.of.i64 = g.value; break;
+            case WASM_F64: value.of.f64 = g.value; break;
+            default: spdlog::error("Unsupported type for global {}", g.name); break;
+        }
+        wasmtime_global_set(context, &global, &value);
     }
-    wasmtime_global_set(context, &global, &value);
-  }
 }

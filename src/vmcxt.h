@@ -37,6 +37,8 @@ public:
     wasmtime_context_t* get_context();
     optional<AddressMap> get_address_map();
     vector<wasmtime_ssmap_entry_t> get_stack_size_maps();
+    vector<uint8_t> read_file_to_buffer(const std::string& file_path);
+    void grow_memory_if_needed(wasmtime_memory_t& memory, size_t required_size);
 
     std::optional<Memory> get_memory();
     std::optional<size_t> get_memsize();
