@@ -8,3 +8,5 @@ using GlobalVmSetter = void (*)(VMCxt *);
 void register_sigtrap(VMCxt *vm, SignalHandler handler, GlobalVmSetter setter);
 void sigtrap_handler(int sig, siginfo_t *info, void *context);
 void global_vm_setter(VMCxt* vm);
+
+void sigusr1_handler(int sig, siginfo_t *info, void *context);

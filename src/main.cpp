@@ -35,8 +35,18 @@ int main(int argc, char* argv[]) {
             spdlog::error("Failed to initialize VM");
             return -1;
         }
+        
+        // Address Mapの取得
+        AddressMap addr_map;
+        if (auto ret = vm.get_address_map(); ret.has_value()) {
+            addr_map = ret.value();
+        } else {
+            spdlog::error("Failed to get address map");
+            return -1;
+        }
 
         // SIGTRAP ハンドラ登録
+        register_sigusr1(&addr_map, sigusr1_handler);
         register_sigtrap(&vm, sigtrap_handler, global_vm_setter);
 
         // WASM モジュールの実行

@@ -58,3 +58,31 @@ void sigtrap_handler(int sig, siginfo_t *info, void *context) {
     resume_regs(ctx, regs);
     spdlog::info("Resume registers");
 }
+
+AddressMap *global_addrmap;
+
+void register_sigusr1(AddressMap *addr_map, SignalHandler handler) {
+    struct sigaction sa {};
+    sa.sa_flags = SA_SIGINFO | SA_RESTART;
+    sa.sa_sigaction = handler;
+    sigemptyset(&sa.sa_mask);
+
+    if (sigaction(SIGUSR1, &sa, nullptr) == -1) {
+        spdlog::error("Error: cannot handle SIGUSR1");
+        exit(-1);
+    }
+}
+
+void sigusr1_handler(int sig, siginfo_t *info, void *context) {
+    // pcを取得
+    ucontext_t *ctx = (ucontext_t *)context;
+    uintptr_t pc = ctx->uc_mcontext.gregs[REG_RIP];
+    // AddressMapからpcの次のpcを取得
+    uint32_t next_pc = global_addrmap->get_next_pc(pc);
+    
+    // codememoryを取得
+    
+    // address mapを取得
+    // checkpoint labelとして挿入したnopをint3にrewrite
+
+}
